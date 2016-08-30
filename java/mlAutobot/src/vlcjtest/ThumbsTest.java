@@ -46,7 +46,7 @@ import uk.co.caprica.vlcj.test.VlcjTest;
  */
 public class ThumbsTest extends VlcjTest {
 
-    private final static String MRL = "/home/duo/Vídeos/guilmore/confortablyNumb.mp4";
+    private final static String MRL = "resources/confortablyNumb.mp4";
 
     private static final String[] VLC_ARGS = {
         "--intf", "dummy",          /* no interface */
