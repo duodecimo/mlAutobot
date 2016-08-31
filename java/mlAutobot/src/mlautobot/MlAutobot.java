@@ -24,12 +24,14 @@ import java.awt.event.ActionEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import javax.swing.JButton;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
+import mlautobot.interfaces.BufferedImageCaptureInterface;
 import uk.co.caprica.vlcj.component.EmbeddedMediaPlayerComponent;
 import uk.co.caprica.vlcj.discovery.NativeDiscovery;
 import uk.co.caprica.vlcj.player.MediaPlayer;
@@ -39,22 +41,21 @@ import uk.co.caprica.vlcj.player.MediaPlayerEventAdapter;
  *
  * @author duo
  */
-public class MlAutobot {
+public class MlAutobot implements BufferedImageCaptureInterface {
 
     //private final String MRL = "http://192.168.0.4:8080/video";
     private final String MRL = "/home/duo/Vídeos/guilmore/confortablyNumb.mp4";
     private final JFrame frame;
     private final EmbeddedMediaPlayerComponent mediaPlayerComponent;
+    private final JLabel mrlLabel;
+    private final JTextField mrlTextField;
+    private final JButton startButton;
     private final JButton pauseButton;
-    private final JButton rewindButton;
-    private final JButton skipButton;
-    private final JButton captureButton;
     private BufferedImage image;
 
     public MlAutobot(String[] args) {
-        frame = new JFrame("Duo: My First Media Player");
+        frame = new JFrame("ML Autobot Monitor");
         frame.setBounds(100, 100, 600, 400);
-        //frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         frame.addWindowListener(new WindowAdapter() {
             @Override
@@ -68,38 +69,31 @@ public class MlAutobot {
         contentPane.setLayout(new BorderLayout());
         mediaPlayerComponent = new EmbeddedMediaPlayerComponent();
         contentPane.add(mediaPlayerComponent, BorderLayout.CENTER);
+        
+        mrlLabel = new JLabel("MRL");
+        mrlTextField = new JTextField("", 50);
+        JPanel mrlPane = new JPanel();
+        mrlPane.setLayout(new BorderLayout(10, 20));
+        mrlPane.add(mrlLabel, BorderLayout.WEST);
+        mrlPane.add(mrlTextField, BorderLayout.CENTER);
 
         JPanel controlsPane = new JPanel();
-        
+        startButton = new JButton("Start");
+        controlsPane.add(startButton);
         pauseButton = new JButton("Pause");
         controlsPane.add(pauseButton);
-        rewindButton = new JButton("Rewind");
-        controlsPane.add(rewindButton);
-        skipButton = new JButton("Skip");
-        controlsPane.add(skipButton);
-        captureButton = new JButton("Capture");
-        controlsPane.add(captureButton);
         
-        
+        contentPane.add(mrlPane, BorderLayout.NORTH);
         contentPane.add(controlsPane, BorderLayout.SOUTH);
+
+        startButton.addActionListener((ActionEvent e) -> {
+            if(!mrlTextField.getText().isEmpty()) {
+                mediaPlayerComponent.getMediaPlayer().playMedia(mrlTextField.getText());            
+            }
+        });
         
         pauseButton.addActionListener((ActionEvent e) -> {
             mediaPlayerComponent.getMediaPlayer().pause();
-        });
-
-        rewindButton.addActionListener((ActionEvent e) -> {
-            mediaPlayerComponent.getMediaPlayer().skip(-10000);
-        });
-
-        skipButton.addActionListener((ActionEvent e) -> {
-            mediaPlayerComponent.getMediaPlayer().skip(10000);
-        });
-
-        captureButton.addActionListener((ActionEvent e) -> {
-            File file = new File("/home/duo/MlAutobot.png");
-            mediaPlayerComponent.getMediaPlayer().saveSnapshot(file);
-            image = mediaPlayerComponent.getMediaPlayer().getSnapshot();
-            show("Image getSnapshot", image, 5);
         });
 
         mediaPlayerComponent.getMediaPlayer().addMediaPlayerEventListener(new MediaPlayerEventAdapter() {
@@ -107,7 +101,7 @@ public class MlAutobot {
             public void playing(MediaPlayer mediaPlayer) {
                 SwingUtilities.invokeLater(() -> {
                     frame.setTitle(String.format(
-                            "Duo: My First Media Player - %s",
+                            "Showing %s",
                             mediaPlayerComponent.getMediaPlayer().getMediaMeta().getTitle()
                     ));
                 });
@@ -129,7 +123,8 @@ public class MlAutobot {
                             "Error",
                             JOptionPane.ERROR_MESSAGE
                     );
-                    closeWindow();
+                    // lets belive in second chances
+                    //closeWindow();
                 });
             }
         });
@@ -137,7 +132,6 @@ public class MlAutobot {
         frame.setContentPane(contentPane);
         frame.setVisible(true);
 
-        mediaPlayerComponent.getMediaPlayer().playMedia(MRL);
     }
 
     private void closeWindow() {
@@ -165,6 +159,7 @@ public class MlAutobot {
         f.setVisible(true);
     }
 
+    @Override
     public BufferedImage capture() {
         BufferedImage bufferedImage = mediaPlayerComponent.getMediaPlayer().getSnapshot();
         return bufferedImage;

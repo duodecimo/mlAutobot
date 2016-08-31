@@ -82,7 +82,6 @@ public class ThumbsTest extends VlcjTest {
 
         final CountDownLatch inPositionLatch = new CountDownLatch(1);
         final CountDownLatch snapshotTakenLatch = new CountDownLatch(1);
-
         mediaPlayer.addMediaPlayerEventListener(new MediaPlayerEventAdapter() {
 
             @Override
