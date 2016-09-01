@@ -51,8 +51,8 @@ import uk.co.caprica.vlcj.player.MediaPlayerEventAdapter;
  */
 public class VlcjTest {
 
-    //private final String MRL = "http://192.168.0.4:8080/video";
-    private final String MRL = "/home/duo/Vídeos/guilmore/confortablyNumb.mp4";
+    private final String MRL = "http://192.168.0.9:8080/video";
+    //private final String MRL = "/home/duo/Vídeos/guilmore/confortablyNumb.mp4";
     private final JFrame frame;
     private final EmbeddedMediaPlayerComponent mediaPlayerComponent;
     private final JButton pauseButton;
