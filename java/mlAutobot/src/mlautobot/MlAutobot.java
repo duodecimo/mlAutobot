@@ -24,6 +24,8 @@ import java.awt.event.ActionEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBuffer;
+import java.awt.image.DataBufferByte;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -72,7 +74,7 @@ public class MlAutobot implements BufferedImageCaptureInterface {
         contentPane.add(mediaPlayerComponent, BorderLayout.CENTER);
         
         mrlLabel = new JLabel("MRL");
-        mrlTextField = new JTextField("", 50);
+        mrlTextField = new JTextField("http://192.168.0.9:8080/video", 50);
         JPanel mrlPane = new JPanel();
         mrlPane.setLayout(new BorderLayout(10, 20));
         mrlPane.add(mrlLabel, BorderLayout.WEST);
@@ -100,31 +102,22 @@ public class MlAutobot implements BufferedImageCaptureInterface {
         });
 
         statsButton.addActionListener((ActionEvent e) -> {
-            image = mediaPlayerComponent.getMediaPlayer().getSnapshot();
-            byte[] pixels = new byte[image.getHeight() * image.getWidth()];
-            for (int x = 0; x < image.getWidth(); x++) {
-                for (int y = 0; y < image.getHeight(); y++) {
-                    pixels[x*y + y] = (byte) (image.getRGB(x, y) == 0xFFFFFFFF ? 0 : 1);
-                }
-            }
-            String sample = "";
-            for(int x=0; x<10; x++) {
-                sample += pixels[x] + ":";
-            }
-            final String fsample = sample;
+            image = convertToGrayScale(mediaPlayerComponent.getMediaPlayer().getSnapshot(176, 144));
+            show("amostra", image, 1);
+            //capture the pixels of the 176x144 black and white
+            byte[] pixels = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
+
             SwingUtilities.invokeLater(() -> {
                 JOptionPane.showMessageDialog(
                     frame,
                         "height: " + image.getHeight() + "\n" +
                         "width:  " + image.getWidth()  + "\n" +
-                        "bytes:  " + pixels.length     + "\n" +
-                        "sample: " + fsample
+                        "pixels: " + pixels.length
                     ,
                    "Image stats",
                     JOptionPane.INFORMATION_MESSAGE
                 );
             });
-
         });
 
         mediaPlayerComponent.getMediaPlayer().addMediaPlayerEventListener(new MediaPlayerEventAdapter() {
@@ -192,20 +185,19 @@ public class MlAutobot implements BufferedImageCaptureInterface {
 
     @Override
     public BufferedImage capture() {
-        BufferedImage bufferedImage = mediaPlayerComponent.getMediaPlayer().getSnapshot();
-        /* bufferedImage.getRGB(0, 0, 0, 0, rgbArray, 0, 0)
-                public int[] getRGB(int startX, int startY, int w, int h, int[] rgbArray, int offset, int scansize)
-                Returns an array of integer pixels in the default RGB color model (TYPE_INT_ARGB) and default sRGB color space, from a portion of the image data. Color conversion takes place if the default model does not match the image ColorModel. There are only 8-bits of precision for each color component in the returned data when using this method. With a specified coordinate (x, y) in the image, the ARGB pixel can be accessed in this way:
-                pixel   = rgbArray[offset + (y-startY)*scansize + (x-startX)]; 
-                An ArrayOutOfBoundsException may be thrown if the region is not in bounds. However, explicit bounds checking is not guaranteed.
-                Parâmetros:
-                    startX - the starting X coordinate startY - the starting Y coordinate w - width of region h - height of region rgbArray - if not null, the rgb pixels are written here offset - offset into the rgbArray scansize - scanline stride for the rgbArray 
-                Retorna:
-                    array of RGB pixels. 
-                Veja Também:
-                    BufferedImage.setRGB(int, int, int), BufferedImage.setRGB(int, int, int, int, int[], int, int)
-        */
-        return bufferedImage;
+        BufferedImage bufferedImage = mediaPlayerComponent.getMediaPlayer().getSnapshot(176, 144);
+        return convertToGrayScale(bufferedImage);
+    }
+
+    public static BufferedImage convertToGrayScale(BufferedImage image) {
+        BufferedImage result = new BufferedImage(
+                image.getWidth(),
+                image.getHeight(),
+                BufferedImage.TYPE_BYTE_GRAY);
+        Graphics g = result.getGraphics();
+        g.drawImage(image, 0, 0, null);
+        g.dispose();
+        return result;
     }
 
     /**
@@ -217,5 +209,5 @@ public class MlAutobot implements BufferedImageCaptureInterface {
             MlAutobot mlAutobot = new MlAutobot(args);
         });
     }
-  
+
 }
