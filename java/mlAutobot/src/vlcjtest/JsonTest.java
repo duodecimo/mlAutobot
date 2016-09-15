@@ -42,6 +42,19 @@ public class JsonTest {
     JsonParser jsonParser;
     public JsonTest() {
         try {
+            reportData();
+            Thread.sleep(1000);
+            reportData();
+            Thread.sleep(1000);
+            reportData();
+            Thread.sleep(1000);
+        } catch (InterruptedException ex) {
+            Logger.getLogger(JsonTest.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+
+    public void reportData() {
+        try {
             url = new URL("http://192.168.0.4:8080/sensors.json");
             inputStream = url.openStream();
             jsonParser = Json.createParser(inputStream);
@@ -81,9 +94,9 @@ public class JsonTest {
                             AX_READ = false;
                             INDEX_READ = false;
                             FOUND_DATA = false;
-                            System.out.println("index: " + index + "\n" +
-                                    "ax: " + ax + "\n" +
-                                    "ay: " + ay + "\n" +
+                            System.out.println("index: " + index + ", " +
+                                    "ax: " + ax + ", " +
+                                    "ay: " + ay + ", " +
                                     "az: " + az + "\n");
                         }
                         //System.out.println(event.toString() + " " +
@@ -98,7 +111,7 @@ public class JsonTest {
         } catch (IOException ex) {
             Logger.getLogger(JsonTest.class.getName()).log(Level.SEVERE, null, ex);
         }
- }
+    }
 
     public static void main(String[] args) throws MalformedURLException {
         new JsonTest();
