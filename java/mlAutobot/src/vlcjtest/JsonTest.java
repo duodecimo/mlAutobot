@@ -33,13 +33,20 @@ import javax.json.stream.JsonParser;
 public class JsonTest {
 
     URL url;
+    boolean FOUND_DATA = false;
+    boolean INDEX_READ = false;
+    boolean AX_READ = false;
+    boolean AY_READ = false;
+    String index, ax, ay, az;
+    InputStream inputStream;
+    JsonParser jsonParser;
     public JsonTest() {
         try {
             url = new URL("http://192.168.0.4:8080/sensors.json");
-            InputStream is = url.openStream();
-            JsonParser parser = Json.createParser(is);
-            while (parser.hasNext()) {
-                JsonParser.Event event = parser.next();
+            inputStream = url.openStream();
+            jsonParser = Json.createParser(inputStream);
+            while (jsonParser.hasNext()) {
+                JsonParser.Event event = jsonParser.next();
                 switch(event) {
                     case START_ARRAY:
                     case END_ARRAY:
@@ -48,19 +55,45 @@ public class JsonTest {
                     case VALUE_FALSE:
                     case VALUE_NULL:
                     case VALUE_TRUE:
-                        System.out.println(event.toString());
+                        //System.out.println(event.toString());
                         break;
                     case KEY_NAME:
-                        System.out.print(event.toString() + " " +
-                                parser.getString() + " - ");
+                        if(jsonParser.getString().equals("data")) {
+                            FOUND_DATA = true; // data Array found, need to read index
+                        }
+                        //System.out.print(event.toString() + " " +
+                        //        jsonParser.getString() + " - ");
                         break;
                     case VALUE_STRING:
                     case VALUE_NUMBER:
-                        System.out.println(event.toString() + " " +
-                                parser.getString());
+                        if(FOUND_DATA && !INDEX_READ) {
+                            index = jsonParser.getString();
+                            INDEX_READ = true;
+                        } else if(FOUND_DATA && INDEX_READ && !AX_READ) {
+                            ax = jsonParser.getString();
+                            AX_READ = true;
+                        } else if(FOUND_DATA && INDEX_READ && AX_READ && !AY_READ) {
+                            ay = jsonParser.getString();
+                            AY_READ = true;
+                        } else if(FOUND_DATA && INDEX_READ && AX_READ && AY_READ) {
+                            az = jsonParser.getString();
+                            AY_READ = false;
+                            AX_READ = false;
+                            INDEX_READ = false;
+                            FOUND_DATA = false;
+                            System.out.println("index: " + index + "\n" +
+                                    "ax: " + ax + "\n" +
+                                    "ay: " + ay + "\n" +
+                                    "az: " + az + "\n");
+                        }
+                        //System.out.println(event.toString() + " " +
+                                //parser.getString());
                         break;
                 }
-            }       } catch (MalformedURLException ex) {
+            }
+            jsonParser.close();
+            inputStream.close();
+        } catch (MalformedURLException ex) {
             Logger.getLogger(JsonTest.class.getName()).log(Level.SEVERE, null, ex);
         } catch (IOException ex) {
             Logger.getLogger(JsonTest.class.getName()).log(Level.SEVERE, null, ex);
