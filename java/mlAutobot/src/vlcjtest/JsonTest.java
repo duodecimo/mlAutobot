@@ -23,9 +23,8 @@ import java.net.URL;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.json.Json;
-import javax.json.JsonArray;
-import javax.json.JsonObject;
 import javax.json.JsonReader;
+import javax.json.stream.JsonParser;
 
 /**
  *
@@ -34,28 +33,41 @@ import javax.json.JsonReader;
 public class JsonTest {
 
     URL url;
-
-    public JsonTest() throws MalformedURLException {
-        url = new URL("http://192.168.0.4:8080/sensors.json");
-        try (InputStream is = url.openStream();
-                JsonReader rdr = Json.createReader(is)) {
-
-            JsonObject obj = rdr.readObject();
-            JsonArray results = obj.getJsonArray("data");
-            results.getValuesAs(JsonObject.class).stream().map((result) -> {
-                System.out.print(result.getJsonObject("from").getString("name"));
-                return result;
-            }).map((result) -> {
-                System.out.print(": ");
-                return result;
-            }).map((result) -> {
-                System.out.println(result.getString("message", ""));
-                return result;
-            }).forEach((_item) -> {
-                System.out.println("-----------");
-            });
+    public JsonTest() {
+        try {
+            url = new URL("http://192.168.0.4:8080/sensors.json");
+            InputStream is = url.openStream();
+            JsonParser parser = Json.createParser(is);
+            while (parser.hasNext()) {
+                JsonParser.Event event = parser.next();
+                switch(event) {
+                    case START_ARRAY:
+                    case END_ARRAY:
+                    case START_OBJECT:
+                    case END_OBJECT:
+                    case VALUE_FALSE:
+                    case VALUE_NULL:
+                    case VALUE_TRUE:
+                        System.out.println(event.toString());
+                        break;
+                    case KEY_NAME:
+                        System.out.print(event.toString() + " " +
+                                parser.getString() + " - ");
+                        break;
+                    case VALUE_STRING:
+                    case VALUE_NUMBER:
+                        System.out.println(event.toString() + " " +
+                                parser.getString());
+                        break;
+                }
+            }       } catch (MalformedURLException ex) {
+            Logger.getLogger(JsonTest.class.getName()).log(Level.SEVERE, null, ex);
         } catch (IOException ex) {
             Logger.getLogger(JsonTest.class.getName()).log(Level.SEVERE, null, ex);
         }
+ }
+
+    public static void main(String[] args) throws MalformedURLException {
+        new JsonTest();
     }
 }
