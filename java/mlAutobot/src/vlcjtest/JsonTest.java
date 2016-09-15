@@ -23,7 +23,6 @@ import java.net.URL;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.json.Json;
-import javax.json.JsonReader;
 import javax.json.stream.JsonParser;
 
 /**

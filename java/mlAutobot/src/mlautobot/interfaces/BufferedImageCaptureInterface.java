@@ -23,5 +23,5 @@ import java.awt.image.BufferedImage;
  * @author duo
  */
 public interface BufferedImageCaptureInterface {
-    public BufferedImage capture();
+    public BufferedImage captureImage();
 }

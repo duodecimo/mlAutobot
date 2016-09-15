@@ -37,6 +37,16 @@ import uk.co.caprica.vlcj.component.EmbeddedMediaPlayerComponent;
 import uk.co.caprica.vlcj.discovery.NativeDiscovery;
 import uk.co.caprica.vlcj.player.MediaPlayer;
 import uk.co.caprica.vlcj.player.MediaPlayerEventAdapter;
+import java.io.IOException;
+import java.io.InputStream;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.json.Json;
+import javax.json.stream.JsonParser;
 
 /**
  *
@@ -54,6 +64,15 @@ public class MlAutobot implements BufferedImageCaptureInterface {
     private final JButton pauseButton;
     private final JButton statsButton;
     private BufferedImage image;
+    private URL url;
+    boolean FOUND_DATA = false;
+    boolean INDEX_READ = false;
+    boolean AX_READ = false;
+    boolean AY_READ = false;
+    String index, ax, ay, az;
+    InputStream inputStream;
+    JsonParser jsonParser;
+    AccelerometerData accelerometerData;
 
     public MlAutobot(String[] args) {
         frame = new JFrame("ML Autobot Monitor");
@@ -104,16 +123,16 @@ public class MlAutobot implements BufferedImageCaptureInterface {
             image = convertToGrayScale(mediaPlayerComponent.getMediaPlayer().getSnapshot(176, 144));
             show("amostra", image, 1);
             //capture the pixels of the 176x144 black and white
-            byte[] pixels = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
-
+            //byte[] pixels = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
+            accelerometerData = getAccelerometerData();
             SwingUtilities.invokeLater(() -> {
                 JOptionPane.showMessageDialog(
                     frame,
-                        "height: " + image.getHeight() + "\n" +
-                        "width:  " + image.getWidth()  + "\n" +
-                        "pixels: " + pixels.length
+                        "ax: " + accelerometerData.getAx() + "\n" +
+                        "ay:  " + accelerometerData.getAy()  + "\n" +
+                        "az: " + accelerometerData.getAz()
                     ,
-                   "Image stats",
+                   "Accelerometer data",
                     JOptionPane.INFORMATION_MESSAGE
                 );
             });
@@ -183,7 +202,7 @@ public class MlAutobot implements BufferedImageCaptureInterface {
     }
 
     @Override
-    public BufferedImage capture() {
+    public BufferedImage captureImage() {
         BufferedImage bufferedImage = mediaPlayerComponent.getMediaPlayer().getSnapshot(176, 144);
         return convertToGrayScale(bufferedImage);
     }
@@ -199,6 +218,69 @@ public class MlAutobot implements BufferedImageCaptureInterface {
         return result;
     }
 
+    public AccelerometerData getAccelerometerData() {
+        accelerometerData = new AccelerometerData();
+        try {
+            url = new URL("http://192.168.0.4:8080/sensors.json");
+            inputStream = url.openStream();
+            jsonParser = Json.createParser(inputStream);
+            while (jsonParser.hasNext()) {
+                JsonParser.Event event = jsonParser.next();
+                switch(event) {
+                    case START_ARRAY:
+                    case END_ARRAY:
+                    case START_OBJECT:
+                    case END_OBJECT:
+                    case VALUE_FALSE:
+                    case VALUE_NULL:
+                    case VALUE_TRUE:
+                        //System.out.println(event.toString());
+                        break;
+                    case KEY_NAME:
+                        if(jsonParser.getString().equals("data")) {
+                            FOUND_DATA = true; // data Array found, need to read index
+                        }
+                        //System.out.print(event.toString() + " " +
+                        //        jsonParser.getString() + " - ");
+                        break;
+                    case VALUE_STRING:
+                    case VALUE_NUMBER:
+                        if(FOUND_DATA && !INDEX_READ) {
+                            index = jsonParser.getString();
+                            INDEX_READ = true;
+                        } else if(FOUND_DATA && INDEX_READ && !AX_READ) {
+                            ax = jsonParser.getString();
+                            AX_READ = true;
+                        } else if(FOUND_DATA && INDEX_READ && AX_READ && !AY_READ) {
+                            ay = jsonParser.getString();
+                            AY_READ = true;
+                        } else if(FOUND_DATA && INDEX_READ && AX_READ && AY_READ) {
+                            az = jsonParser.getString();
+                            AY_READ = false;
+                            AX_READ = false;
+                            INDEX_READ = false;
+                            FOUND_DATA = false;
+                            accelerometerData.setIndex(new BigInteger(index));
+                            accelerometerData.setAx(new BigDecimal(ax));
+                            accelerometerData.setAy(new BigDecimal(ay));
+                            accelerometerData.setAz(new BigDecimal(az));
+                        }
+                        //System.out.println(event.toString() + " " +
+                                //parser.getString());
+                        break;
+                }
+            }
+            jsonParser.close();
+            inputStream.close();
+            return accelerometerData;
+        } catch (MalformedURLException ex) {
+            Logger.getLogger(this.getClass().getName()).log(Level.SEVERE, null, ex);
+        } catch (IOException ex) {
+            Logger.getLogger(this.getClass().getName()).log(Level.SEVERE, null, ex);
+        }
+        return null;
+    }
+
     /**
      * @param args the command line arguments
      */
@@ -208,5 +290,4 @@ public class MlAutobot implements BufferedImageCaptureInterface {
             MlAutobot mlAutobot = new MlAutobot(args);
         });
     }
-
 }
