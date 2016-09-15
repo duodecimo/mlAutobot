@@ -24,7 +24,6 @@ import java.awt.event.ActionEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferByte;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -92,7 +91,7 @@ public class MlAutobot implements BufferedImageCaptureInterface {
         contentPane.add(mediaPlayerComponent, BorderLayout.CENTER);
         
         mrlLabel = new JLabel("MRL");
-        mrlTextField = new JTextField("http://192.168.0.9:8080/video", 50);
+        mrlTextField = new JTextField("http://192.168.0.9:8080", 50);
         JPanel mrlPane = new JPanel();
         mrlPane.setLayout(new BorderLayout(10, 20));
         mrlPane.add(mrlLabel, BorderLayout.WEST);
@@ -111,7 +110,7 @@ public class MlAutobot implements BufferedImageCaptureInterface {
 
         startButton.addActionListener((ActionEvent e) -> {
             if(!mrlTextField.getText().isEmpty()) {
-                mediaPlayerComponent.getMediaPlayer().playMedia(mrlTextField.getText());            
+                mediaPlayerComponent.getMediaPlayer().playMedia(mrlTextField.getText() + "/video");            
             }
         });
         
@@ -221,7 +220,7 @@ public class MlAutobot implements BufferedImageCaptureInterface {
     public AccelerometerData getAccelerometerData() {
         accelerometerData = new AccelerometerData();
         try {
-            url = new URL("http://192.168.0.4:8080/sensors.json");
+            url = new URL(MRL + "/sensors.json");
             inputStream = url.openStream();
             jsonParser = Json.createParser(inputStream);
             while (jsonParser.hasNext()) {
