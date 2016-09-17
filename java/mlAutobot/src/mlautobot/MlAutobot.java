@@ -246,6 +246,15 @@ public class MlAutobot implements BufferedImageCaptureInterface, AccelerometerDa
         return result;
     }
 
+    /**
+     * This method uses jsonp library from oracle.
+     * one needs both the compiling and run time libraries, just download
+     * the jar's files and add them to your project libraries.
+     * see http://search.maven.org/remotecontent?filepath=javax/json/javax.json-api/1.0/javax.json-api-1.0.jar
+     * and http://search.maven.org/remotecontent?filepath=org/glassfish/javax.json/1.0.4/javax.json-1.0.4.jar
+     * @return AccelerometerData that has 3 fields:
+     * index (BigInteger), ax, ay, az (BigDecimal).
+     */
     @Override
     public AccelerometerData getAccelerometerData() {
         accelerometerData = new AccelerometerData();
