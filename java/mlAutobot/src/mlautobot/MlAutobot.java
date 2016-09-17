@@ -17,9 +17,11 @@
 package mlautobot;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.GraphicsEnvironment;
 import java.awt.event.ActionEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -32,7 +34,6 @@ import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 import mlautobot.interfaces.BufferedImageCaptureInterface;
-import uk.co.caprica.vlcj.component.EmbeddedMediaPlayerComponent;
 import uk.co.caprica.vlcj.discovery.NativeDiscovery;
 import uk.co.caprica.vlcj.player.MediaPlayer;
 import uk.co.caprica.vlcj.player.MediaPlayerEventAdapter;
@@ -46,6 +47,12 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.json.Json;
 import javax.json.stream.JsonParser;
+import uk.co.caprica.vlcj.component.DirectMediaPlayerComponent;
+import uk.co.caprica.vlcj.player.direct.BufferFormatCallback;
+import uk.co.caprica.vlcj.player.direct.DirectMediaPlayer;
+import uk.co.caprica.vlcj.player.direct.RenderCallback;
+import uk.co.caprica.vlcj.player.direct.RenderCallbackAdapter;
+import uk.co.caprica.vlcj.player.direct.format.RV32BufferFormat;
 
 /**
  *
@@ -54,15 +61,19 @@ import javax.json.stream.JsonParser;
 public class MlAutobot implements BufferedImageCaptureInterface {
 
     //private final String MRL = "http://192.168.0.4:8080/video";
-    private final String MRL = "/home/duo/Vídeos/guilmore/confortablyNumb.mp4";
     private final JFrame frame;
-    private final EmbeddedMediaPlayerComponent mediaPlayerComponent;
+    public static final int WIDTH = 600;
+    public static final int HEIGHT = 400;
+    private final JPanel videoSurface;
+    private final BufferedImage image;
+    private final DirectMediaPlayerComponent mediaPlayerComponent;
+    //private final EmbeddedMediaPlayerComponent mediaPlayerComponent;
     private final JLabel mrlLabel;
+    private final JLabel accelLabel;
     private final JTextField mrlTextField;
     private final JButton startButton;
     private final JButton pauseButton;
-    private final JButton statsButton;
-    private BufferedImage image;
+    //private final JButton statsButton;
     private URL url;
     boolean FOUND_DATA = false;
     boolean INDEX_READ = false;
@@ -75,7 +86,7 @@ public class MlAutobot implements BufferedImageCaptureInterface {
 
     public MlAutobot(String[] args) {
         frame = new JFrame("ML Autobot Monitor");
-        frame.setBounds(100, 100, 600, 400);
+        frame.setBounds(100, 100, WIDTH, HEIGHT);
         frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         frame.addWindowListener(new WindowAdapter() {
             @Override
@@ -85,28 +96,45 @@ public class MlAutobot implements BufferedImageCaptureInterface {
             }
         });
         
-        JPanel contentPane = new JPanel();
-        contentPane.setLayout(new BorderLayout());
-        mediaPlayerComponent = new EmbeddedMediaPlayerComponent();
-        contentPane.add(mediaPlayerComponent, BorderLayout.CENTER);
+        videoSurface = new VideoSurfacePanel();
+        videoSurface.setLayout(new BorderLayout());
+
+        BufferFormatCallback bufferFormatCallback = (int sourceWidth, int sourceHeight) -> new RV32BufferFormat(WIDTH, HEIGHT);
+
+        mediaPlayerComponent = new DirectMediaPlayerComponent(bufferFormatCallback) {
+            @Override
+            protected RenderCallback onGetRenderCallback() {
+                return new MlAutobotRenderCallbackAdapter();
+            }
+        };
+
+        //mediaPlayerComponent = new EmbeddedMediaPlayerComponent();
+        
+        image = GraphicsEnvironment
+            .getLocalGraphicsEnvironment()
+            .getDefaultScreenDevice()
+            .getDefaultConfiguration()
+            .createCompatibleImage(WIDTH, HEIGHT);
         
         mrlLabel = new JLabel("MRL");
-        mrlTextField = new JTextField("http://192.168.0.9:8080", 50);
+        mrlTextField = new JTextField("http://192.168.0.4:8080", 50);
         JPanel mrlPane = new JPanel();
         mrlPane.setLayout(new BorderLayout(10, 20));
         mrlPane.add(mrlLabel, BorderLayout.WEST);
         mrlPane.add(mrlTextField, BorderLayout.CENTER);
+        accelLabel = new JLabel();
+        mrlPane.add(accelLabel, BorderLayout.SOUTH);
 
         JPanel controlsPane = new JPanel();
         startButton = new JButton("Start");
         controlsPane.add(startButton);
         pauseButton = new JButton("Pause");
         controlsPane.add(pauseButton);
-        statsButton = new JButton("Stats");
-        controlsPane.add(statsButton);
+        //statsButton = new JButton("Stats");
+        //controlsPane.add(statsButton);
         
-        contentPane.add(mrlPane, BorderLayout.NORTH);
-        contentPane.add(controlsPane, BorderLayout.SOUTH);
+        videoSurface.add(mrlPane, BorderLayout.NORTH);
+        videoSurface.add(controlsPane, BorderLayout.SOUTH);
 
         startButton.addActionListener((ActionEvent e) -> {
             if(!mrlTextField.getText().isEmpty()) {
@@ -118,24 +146,24 @@ public class MlAutobot implements BufferedImageCaptureInterface {
             mediaPlayerComponent.getMediaPlayer().pause();
         });
 
-        statsButton.addActionListener((ActionEvent e) -> {
-            image = convertToGrayScale(mediaPlayerComponent.getMediaPlayer().getSnapshot(176, 144));
-            show("amostra", image, 1);
-            //capture the pixels of the 176x144 black and white
-            //byte[] pixels = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
-            accelerometerData = getAccelerometerData();
-            SwingUtilities.invokeLater(() -> {
-                JOptionPane.showMessageDialog(
-                    frame,
-                        "ax: " + accelerometerData.getAx() + "\n" +
-                        "ay:  " + accelerometerData.getAy()  + "\n" +
-                        "az: " + accelerometerData.getAz()
-                    ,
-                   "Accelerometer data",
-                    JOptionPane.INFORMATION_MESSAGE
-                );
-            });
+        /*        statsButton.addActionListener((ActionEvent e) -> {
+        image = convertToGrayScale(mediaPlayerComponent.getMediaPlayer().getSnapshot(176, 144));
+        show("amostra", image, 1);
+        //capture the pixels of the 176x144 black and white
+        //byte[] pixels = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
+        accelerometerData = getAccelerometerData();
+        SwingUtilities.invokeLater(() -> {
+        JOptionPane.showMessageDialog(
+        frame,
+        "ax: " + accelerometerData.getAx() + "\n" +
+        "ay:  " + accelerometerData.getAy()  + "\n" +
+        "az: " + accelerometerData.getAz()
+        ,
+        "Accelerometer data",
+        JOptionPane.INFORMATION_MESSAGE
+        );
         });
+        });*/
 
         mediaPlayerComponent.getMediaPlayer().addMediaPlayerEventListener(new MediaPlayerEventAdapter() {
             @Override
@@ -170,7 +198,7 @@ public class MlAutobot implements BufferedImageCaptureInterface {
             }
         });
 
-        frame.setContentPane(contentPane);
+        frame.setContentPane(videoSurface);
         frame.setVisible(true);
 
     }
@@ -220,7 +248,7 @@ public class MlAutobot implements BufferedImageCaptureInterface {
     public AccelerometerData getAccelerometerData() {
         accelerometerData = new AccelerometerData();
         try {
-            url = new URL(MRL + "/sensors.json");
+            url = new URL(mrlTextField.getText() + "/sensors.json");
             inputStream = url.openStream();
             jsonParser = Json.createParser(inputStream);
             while (jsonParser.hasNext()) {
@@ -280,11 +308,49 @@ public class MlAutobot implements BufferedImageCaptureInterface {
         return null;
     }
 
+    private class VideoSurfacePanel extends JPanel {
+        private VideoSurfacePanel() {
+            adjustVideoSurfacePanel();
+        }
+
+        private void adjustVideoSurfacePanel() {
+            setBackground(Color.black);
+            setOpaque(true);
+            setPreferredSize(new Dimension(MlAutobot.WIDTH, MlAutobot.HEIGHT));
+            setMinimumSize(new Dimension(MlAutobot.WIDTH, MlAutobot.HEIGHT));
+            setMaximumSize(new Dimension(MlAutobot.WIDTH, MlAutobot.HEIGHT));
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g;
+            g2.drawImage(image, null, 0, 0);
+        }
+    }
+
+    private class MlAutobotRenderCallbackAdapter extends RenderCallbackAdapter {
+
+        private MlAutobotRenderCallbackAdapter() {
+            super(new int[WIDTH * HEIGHT]);
+        }
+
+        @Override
+        protected void onDisplay(DirectMediaPlayer mediaPlayer, int[] rgbBuffer) {
+            // Simply copy buffer to the image and repaint
+            image.setRGB(0, 0, WIDTH, HEIGHT, rgbBuffer, 0, WIDTH);
+            accelerometerData = getAccelerometerData();
+            accelLabel.setText("ax: " + accelerometerData.getAx() + "\n"
+                    + "ay:  " + accelerometerData.getAy() + "\n"
+                    + "az: " + accelerometerData.getAz());
+            videoSurface.repaint();
+        }
+    }
+
     /**
      * @param args the command line arguments
      */
     public static void main(String[] args) {
-        new NativeDiscovery().discover();
+        boolean discover = new NativeDiscovery().discover();
         SwingUtilities.invokeLater(() -> {
             MlAutobot mlAutobot = new MlAutobot(args);
         });
