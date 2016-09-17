@@ -1,5 +1,5 @@
 # mlAutobot
-Autonomous robot that rides rodes using machine learning.
+Autonomous robot that rides trough roads using machine learning.
 
 This project aims to build a small tricicle autonomous robot capable of driving a road after leaning how to drive observing a human being performing the driving trough remote control.
 
@@ -11,4 +11,4 @@ The robot carries an Android Mobile running IP Webcam Pro (accquired (BRL 9,00) 
 IP Webcam Pro is used with default configuration, and the server is launched with blank user name and password connected on intranet.
 
 3) Java desktop.
-A Java program receives the broadcasted images using vlcj (accquired from: http://capricasoftware.co.uk/#/projects/vlcj, August 29, 2016). By the way, vlcj is "an Open Source project that provides Java bindings and an application framework for the excellent VLC media player from VideoLAN. The bindings can be used to build media player client and server software using Java.".
+A Java program receives the broadcasted images using vlcj (accquired from: http://capricasoftware.co.uk/#/projects/vlcj, August 29, 2016). By the way, vlcj is "an Open Source project that provides Java bindings and an application framework for the excellent VLC media player from VideoLAN. The bindings can be used to build media player client and server software using Java.". VLC must be installed, see http://www.videolan.org/vlc/.
