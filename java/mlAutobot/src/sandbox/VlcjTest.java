@@ -24,7 +24,7 @@
  * i.e.: private final String MRL = "http://192.168.0.4:8080/video",
  * or  : private final String MRL = "/home/user/Vídeos/guilmore/confortablyNumb.mp4".
  */
-package vlcjtest;
+package sandbox;
 
 import java.awt.BorderLayout;
 import java.awt.Dimension;

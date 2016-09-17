@@ -17,7 +17,7 @@
  * Copyright 2009-2016 Caprica Software Limited.
  */
 
-package vlcjtest;
+package sandbox;
 
 import java.io.File;
 import java.util.concurrent.CountDownLatch;

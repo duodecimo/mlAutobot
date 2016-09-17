@@ -47,6 +47,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.json.Json;
 import javax.json.stream.JsonParser;
+import mlautobot.interfaces.AccelerometerDataCaptureInterface;
 import uk.co.caprica.vlcj.component.DirectMediaPlayerComponent;
 import uk.co.caprica.vlcj.player.direct.BufferFormatCallback;
 import uk.co.caprica.vlcj.player.direct.DirectMediaPlayer;
@@ -58,7 +59,7 @@ import uk.co.caprica.vlcj.player.direct.format.RV32BufferFormat;
  *
  * @author duo
  */
-public class MlAutobot implements BufferedImageCaptureInterface {
+public class MlAutobot implements BufferedImageCaptureInterface, AccelerometerDataCaptureInterface {
 
     //private final String MRL = "http://192.168.0.4:8080/video";
     private final JFrame frame;
@@ -245,6 +246,7 @@ public class MlAutobot implements BufferedImageCaptureInterface {
         return result;
     }
 
+    @Override
     public AccelerometerData getAccelerometerData() {
         accelerometerData = new AccelerometerData();
         try {
@@ -291,6 +293,10 @@ public class MlAutobot implements BufferedImageCaptureInterface {
                             accelerometerData.setAx(new BigDecimal(ax));
                             accelerometerData.setAy(new BigDecimal(ay));
                             accelerometerData.setAz(new BigDecimal(az));
+                            // no need to read further
+                            jsonParser.close();
+                            inputStream.close();
+                            return accelerometerData;
                         }
                         //System.out.println(event.toString() + " " +
                                 //parser.getString());
