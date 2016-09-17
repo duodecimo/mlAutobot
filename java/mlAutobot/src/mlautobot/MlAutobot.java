@@ -58,6 +58,8 @@ import uk.co.caprica.vlcj.player.direct.format.RV32BufferFormat;
 /**
  *
  * @author duo
+ * @see https://duodecimo.github.io/mlAutobot/
+ * 
  */
 public class MlAutobot implements BufferedImageCaptureInterface, AccelerometerDataCaptureInterface {
 
