@@ -48,10 +48,9 @@ import java.util.logging.Logger;
 import javax.json.Json;
 import javax.json.stream.JsonParser;
 import mlautobot.interfaces.AccelerometerDataCaptureInterface;
-import uk.co.caprica.vlcj.component.DirectMediaPlayerComponent;
+import uk.co.caprica.vlcj.player.MediaPlayerFactory;
 import uk.co.caprica.vlcj.player.direct.BufferFormatCallback;
 import uk.co.caprica.vlcj.player.direct.DirectMediaPlayer;
-import uk.co.caprica.vlcj.player.direct.RenderCallback;
 import uk.co.caprica.vlcj.player.direct.RenderCallbackAdapter;
 import uk.co.caprica.vlcj.player.direct.format.RV32BufferFormat;
 
@@ -71,7 +70,8 @@ public class MlAutobot implements BufferedImageCaptureInterface, AccelerometerDa
     public static final int HEIGHT = 400;
     private final JPanel videoSurface;
     private final BufferedImage image;
-    private final DirectMediaPlayerComponent mediaPlayerComponent;
+    //private final DirectMediaPlayerComponent mediaPlayerComponent;
+    private final DirectMediaPlayer directMediaPlayer;
     //private final EmbeddedMediaPlayerComponent mediaPlayerComponent;
     private final JLabel mrlLabel;
     private final JLabel accelLabel;
@@ -97,7 +97,8 @@ public class MlAutobot implements BufferedImageCaptureInterface, AccelerometerDa
         frame.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
-                mediaPlayerComponent.release();
+                //mediaPlayerComponent.release();
+                directMediaPlayer.release();
                 System.exit(0);
             }
         });
@@ -107,7 +108,12 @@ public class MlAutobot implements BufferedImageCaptureInterface, AccelerometerDa
 
         BufferFormatCallback bufferFormatCallback = (int sourceWidth, int sourceHeight) -> new RV32BufferFormat(WIDTH, HEIGHT);
 
-        mediaPlayerComponent = new DirectMediaPlayerComponent(bufferFormatCallback) {
+        MediaPlayerFactory mediaPlayerFactory = 
+                new MediaPlayerFactory("--no-video-title-show", "--grayscale");
+        directMediaPlayer = mediaPlayerFactory.newDirectMediaPlayer(bufferFormatCallback, 
+                new MlAutobotRenderCallbackAdapter());
+/*        mediaPlayerComponent =
+                new DirectMediaPlayerComponent(bufferFormatCallback) {
             @Override
             protected String[] onGetMediaPlayerFactoryArgs() {
                 return new String[] {"--no-video-title-show"};
@@ -117,7 +123,7 @@ public class MlAutobot implements BufferedImageCaptureInterface, AccelerometerDa
                 return new MlAutobotRenderCallbackAdapter();
             }
         };
-        
+  */      
         //mediaPlayerComponent = new EmbeddedMediaPlayerComponent();
         
         image = GraphicsEnvironment
@@ -148,12 +154,14 @@ public class MlAutobot implements BufferedImageCaptureInterface, AccelerometerDa
 
         startButton.addActionListener((ActionEvent e) -> {
             if(!mrlTextField.getText().isEmpty()) {
-                mediaPlayerComponent.getMediaPlayer().playMedia(mrlTextField.getText() + "/video");            
+                //mediaPlayerComponent.getMediaPlayer().playMedia(mrlTextField.getText() + "/video");
+                directMediaPlayer.playMedia(mrlTextField.getText() + "/video");
             }
         });
         
         pauseButton.addActionListener((ActionEvent e) -> {
-            mediaPlayerComponent.getMediaPlayer().pause();
+            //mediaPlayerComponent.getMediaPlayer().pause();
+            directMediaPlayer.pause();
         });
 
         /*        statsButton.addActionListener((ActionEvent e) -> {
@@ -175,7 +183,41 @@ public class MlAutobot implements BufferedImageCaptureInterface, AccelerometerDa
         });
         });*/
 
-        mediaPlayerComponent.getMediaPlayer().addMediaPlayerEventListener(new MediaPlayerEventAdapter() {
+        directMediaPlayer.addMediaPlayerEventListener(new MediaPlayerEventAdapter() {
+            @Override
+            public void playing(MediaPlayer mediaPlayer) {
+                SwingUtilities.invokeLater(() -> {
+                    frame.setTitle(String.format(
+                            "Showing %s",
+                            //mediaPlayerComponent.getMediaPlayer().getMediaMeta().getTitle()
+                            directMediaPlayer.getMediaMeta().getTitle()
+                    ));
+                });
+            }
+
+            @Override
+            public void finished(MediaPlayer mediaPlayer) {
+                SwingUtilities.invokeLater(() -> {
+                    closeWindow();
+                });
+            }
+
+            @Override
+            public void error(MediaPlayer mediaPlayer) {
+                SwingUtilities.invokeLater(() -> {
+                    JOptionPane.showMessageDialog(
+                            frame,
+                            "Failed to play media",
+                            "Error",
+                            JOptionPane.ERROR_MESSAGE
+                    );
+                    // lets belive in second chances
+                    //closeWindow();
+                });
+            }
+        });
+        
+        /*mediaPlayerComponent.getMediaPlayer().addMediaPlayerEventListener(new MediaPlayerEventAdapter() {
             @Override
             public void playing(MediaPlayer mediaPlayer) {
                 SwingUtilities.invokeLater(() -> {
@@ -206,7 +248,7 @@ public class MlAutobot implements BufferedImageCaptureInterface, AccelerometerDa
                     //closeWindow();
                 });
             }
-        });
+        });*/
 
         frame.setContentPane(videoSurface);
         frame.setVisible(true);
@@ -240,7 +282,8 @@ public class MlAutobot implements BufferedImageCaptureInterface, AccelerometerDa
 
     @Override
     public BufferedImage captureImage() {
-        BufferedImage bufferedImage = mediaPlayerComponent.getMediaPlayer().getSnapshot(176, 144);
+        //BufferedImage bufferedImage = mediaPlayerComponent.getMediaPlayer().getSnapshot(176, 144);
+        BufferedImage bufferedImage = directMediaPlayer.getSnapshot(176, 144);
         return convertToGrayScale(bufferedImage);
     }
 
@@ -361,15 +404,15 @@ public class MlAutobot implements BufferedImageCaptureInterface, AccelerometerDa
         @Override
         protected void onDisplay(DirectMediaPlayer mediaPlayer, int[] rgbBuffer) {
             frameCounter++;
-            if(frameCounter>3) {
-                frameCounter = 0;
+            //if(frameCounter>1) {
+                //frameCounter = 0;
                 // Simply copy buffer to the image and repaint
                 image.setRGB(0, 0, WIDTH, HEIGHT, rgbBuffer, 0, WIDTH);
                 accelerometerData = getAccelerometerData();
                 accelLabel.setText(String.format("x: %f y: %f z: %f", accelerometerData.getAx(),
                         accelerometerData.getAy(), accelerometerData.getAz()));
                 videoSurface.repaint();
-            }
+            //}
         }
     }
 
