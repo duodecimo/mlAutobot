@@ -65,8 +65,10 @@ public class MlAutobot implements BufferedImageCaptureInterface, AccelerometerDa
 
     //private final String MRL = "http://192.168.0.4:8080/video";
     private final JFrame frame;
-    public static final int WIDTH = 600;
-    public static final int HEIGHT = 400;
+    //public static final int WIDTH = 600;
+    //public static final int HEIGHT = 400;
+    public static final int WIDTH = 176;
+    public static final int HEIGHT = 144;
     private final JPanel videoSurface;
     private final BufferedImage image;
     private final DirectMediaPlayerComponent mediaPlayerComponent;
@@ -106,11 +108,15 @@ public class MlAutobot implements BufferedImageCaptureInterface, AccelerometerDa
 
         mediaPlayerComponent = new DirectMediaPlayerComponent(bufferFormatCallback) {
             @Override
+            protected String[] onGetMediaPlayerFactoryArgs() {
+                return new String[] {"--no-video-title-show"};
+            }
+            @Override
             protected RenderCallback onGetRenderCallback() {
                 return new MlAutobotRenderCallbackAdapter();
             }
         };
-
+        
         //mediaPlayerComponent = new EmbeddedMediaPlayerComponent();
         
         image = GraphicsEnvironment
