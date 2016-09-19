@@ -67,8 +67,8 @@ public class MlAutobot implements BufferedImageCaptureInterface, AccelerometerDa
     private final JFrame frame;
     //public static final int WIDTH = 600;
     //public static final int HEIGHT = 400;
-    public static final int WIDTH = 176;
-    public static final int HEIGHT = 144;
+    public static final int WIDTH = 600;
+    public static final int HEIGHT = 400;
     private final JPanel videoSurface;
     private final BufferedImage image;
     private final DirectMediaPlayerComponent mediaPlayerComponent;
@@ -80,14 +80,15 @@ public class MlAutobot implements BufferedImageCaptureInterface, AccelerometerDa
     private final JButton pauseButton;
     //private final JButton statsButton;
     private URL url;
-    boolean FOUND_DATA = false;
-    boolean INDEX_READ = false;
-    boolean AX_READ = false;
-    boolean AY_READ = false;
-    String index, ax, ay, az;
-    InputStream inputStream;
-    JsonParser jsonParser;
-    AccelerometerData accelerometerData;
+    private boolean FOUND_DATA = false;
+    private boolean INDEX_READ = false;
+    private boolean AX_READ = false;
+    private boolean AY_READ = false;
+    private String index, ax, ay, az;
+    private InputStream inputStream;
+    private JsonParser jsonParser;
+    private AccelerometerData accelerometerData;
+    private int frameCounter;
 
     public MlAutobot(String[] args) {
         frame = new JFrame("ML Autobot Monitor");
@@ -126,7 +127,7 @@ public class MlAutobot implements BufferedImageCaptureInterface, AccelerometerDa
             .createCompatibleImage(WIDTH, HEIGHT);
         
         mrlLabel = new JLabel("MRL");
-        mrlTextField = new JTextField("http://192.168.0.4:8080", 50);
+        mrlTextField = new JTextField("http://192.168.0.8:8080", 50);
         JPanel mrlPane = new JPanel();
         mrlPane.setLayout(new BorderLayout(10, 20));
         mrlPane.add(mrlLabel, BorderLayout.WEST);
@@ -347,7 +348,7 @@ public class MlAutobot implements BufferedImageCaptureInterface, AccelerometerDa
         @Override
         protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g;
-            g2.drawImage(image, null, 0, 0);
+            g2.drawImage(convertToGrayScale(image), null, 0, 0);
         }
     }
 
@@ -359,13 +360,16 @@ public class MlAutobot implements BufferedImageCaptureInterface, AccelerometerDa
 
         @Override
         protected void onDisplay(DirectMediaPlayer mediaPlayer, int[] rgbBuffer) {
-            // Simply copy buffer to the image and repaint
-            image.setRGB(0, 0, WIDTH, HEIGHT, rgbBuffer, 0, WIDTH);
-            accelerometerData = getAccelerometerData();
-            accelLabel.setText("ax: " + accelerometerData.getAx() + "\n"
-                    + "ay:  " + accelerometerData.getAy() + "\n"
-                    + "az: " + accelerometerData.getAz());
-            videoSurface.repaint();
+            frameCounter++;
+            if(frameCounter>3) {
+                frameCounter = 0;
+                // Simply copy buffer to the image and repaint
+                image.setRGB(0, 0, WIDTH, HEIGHT, rgbBuffer, 0, WIDTH);
+                accelerometerData = getAccelerometerData();
+                accelLabel.setText(String.format("x: %f y: %f z: %f", accelerometerData.getAx(),
+                        accelerometerData.getAy(), accelerometerData.getAz()));
+                videoSurface.repaint();
+            }
         }
     }
 
