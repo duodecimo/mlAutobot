@@ -16,6 +16,8 @@
  */
 package mlautobot;
 
+import com.sun.image.codec.jpeg.JPEGCodec;
+import com.sun.image.codec.jpeg.JPEGImageEncoder;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -26,6 +28,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -60,7 +63,7 @@ import uk.co.caprica.vlcj.player.direct.format.RV32BufferFormat;
  * @see https://duodecimo.github.io/mlAutobot/
  * 
  */
-public class MlAutobot implements BufferedImageCaptureInterface, AccelerometerDataCaptureInterface {
+public class MlAutobot implements AccelerometerDataCaptureInterface {
 
     //private final String MRL = "http://192.168.0.4:8080/video";
     private final JFrame frame;
@@ -88,9 +91,14 @@ public class MlAutobot implements BufferedImageCaptureInterface, AccelerometerDa
     private InputStream inputStream;
     private JsonParser jsonParser;
     private AccelerometerData accelerometerData;
+    private float[] gravity = new float[3];
+    private float[] linearAcceleration = new float[3];
+    private final float G = 0.8f;
+    private final FeatureCallback featureCallback;
     private int frameCounter;
 
-    public MlAutobot(String[] args) {
+    public MlAutobot(FeatureCallback featureCallback) {
+        this.featureCallback = featureCallback;
         frame = new JFrame("ML Autobot Monitor");
         frame.setBounds(100, 100, WIDTH, HEIGHT);
         frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
@@ -146,8 +154,6 @@ public class MlAutobot implements BufferedImageCaptureInterface, AccelerometerDa
         controlsPane.add(startButton);
         pauseButton = new JButton("Pause");
         controlsPane.add(pauseButton);
-        //statsButton = new JButton("Stats");
-        //controlsPane.add(statsButton);
         
         videoSurface.add(mrlPane, BorderLayout.NORTH);
         videoSurface.add(controlsPane, BorderLayout.SOUTH);
@@ -164,32 +170,12 @@ public class MlAutobot implements BufferedImageCaptureInterface, AccelerometerDa
             directMediaPlayer.pause();
         });
 
-        /*        statsButton.addActionListener((ActionEvent e) -> {
-        image = convertToGrayScale(mediaPlayerComponent.getMediaPlayer().getSnapshot(176, 144));
-        show("amostra", image, 1);
-        //capture the pixels of the 176x144 black and white
-        //byte[] pixels = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
-        accelerometerData = getAccelerometerData();
-        SwingUtilities.invokeLater(() -> {
-        JOptionPane.showMessageDialog(
-        frame,
-        "ax: " + accelerometerData.getAx() + "\n" +
-        "ay:  " + accelerometerData.getAy()  + "\n" +
-        "az: " + accelerometerData.getAz()
-        ,
-        "Accelerometer data",
-        JOptionPane.INFORMATION_MESSAGE
-        );
-        });
-        });*/
-
         directMediaPlayer.addMediaPlayerEventListener(new MediaPlayerEventAdapter() {
             @Override
             public void playing(MediaPlayer mediaPlayer) {
                 SwingUtilities.invokeLater(() -> {
                     frame.setTitle(String.format(
                             "Showing %s",
-                            //mediaPlayerComponent.getMediaPlayer().getMediaMeta().getTitle()
                             directMediaPlayer.getMediaMeta().getTitle()
                     ));
                 });
@@ -216,39 +202,6 @@ public class MlAutobot implements BufferedImageCaptureInterface, AccelerometerDa
                 });
             }
         });
-        
-        /*mediaPlayerComponent.getMediaPlayer().addMediaPlayerEventListener(new MediaPlayerEventAdapter() {
-            @Override
-            public void playing(MediaPlayer mediaPlayer) {
-                SwingUtilities.invokeLater(() -> {
-                    frame.setTitle(String.format(
-                            "Showing %s",
-                            mediaPlayerComponent.getMediaPlayer().getMediaMeta().getTitle()
-                    ));
-                });
-            }
-
-            @Override
-            public void finished(MediaPlayer mediaPlayer) {
-                SwingUtilities.invokeLater(() -> {
-                    closeWindow();
-                });
-            }
-
-            @Override
-            public void error(MediaPlayer mediaPlayer) {
-                SwingUtilities.invokeLater(() -> {
-                    JOptionPane.showMessageDialog(
-                            frame,
-                            "Failed to play media",
-                            "Error",
-                            JOptionPane.ERROR_MESSAGE
-                    );
-                    // lets belive in second chances
-                    //closeWindow();
-                });
-            }
-        });*/
 
         frame.setContentPane(videoSurface);
         frame.setVisible(true);
@@ -257,34 +210,6 @@ public class MlAutobot implements BufferedImageCaptureInterface, AccelerometerDa
 
     private void closeWindow() {
         frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
-    }
-
-    @SuppressWarnings("serial")
-    private static void show(String title, final BufferedImage img, int i) {
-        JFrame f = new JFrame(title);
-        f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        f.setContentPane(new JPanel() {
-            @Override
-            protected void paintChildren(Graphics g) {
-                Graphics2D g2 = (Graphics2D)g;
-                g2.drawImage(img, null, 0, 0);
-            }
-
-            @Override
-            public Dimension getPreferredSize() {
-                return new Dimension(img.getWidth(), img.getHeight());
-            }
-        });
-        f.pack();
-        f.setLocation(50 + (i * 50), 50 + (i * 50));
-        f.setVisible(true);
-    }
-
-    @Override
-    public BufferedImage captureImage() {
-        //BufferedImage bufferedImage = mediaPlayerComponent.getMediaPlayer().getSnapshot(176, 144);
-        BufferedImage bufferedImage = directMediaPlayer.getSnapshot(176, 144);
-        return convertToGrayScale(bufferedImage);
     }
 
     public static BufferedImage convertToGrayScale(BufferedImage image) {
@@ -298,7 +223,14 @@ public class MlAutobot implements BufferedImageCaptureInterface, AccelerometerDa
         return result;
     }
 
-    /**
+    public byte[] toByteArray(BufferedImage image) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        JPEGImageEncoder encoder = JPEGCodec.createJPEGEncoder(baos);
+        encoder.encode(image);
+        return baos.toByteArray();
+    }
+
+/**
      * This method uses jsonp library from oracle.
      * one needs both the compiling and run time libraries, just download
      * the jar's files and add them to your project libraries.
@@ -409,9 +341,24 @@ public class MlAutobot implements BufferedImageCaptureInterface, AccelerometerDa
                 // Simply copy buffer to the image and repaint
                 image.setRGB(0, 0, WIDTH, HEIGHT, rgbBuffer, 0, WIDTH);
                 accelerometerData = getAccelerometerData();
-                accelLabel.setText(String.format("x: %f y: %f z: %f", accelerometerData.getAx(),
-                        accelerometerData.getAy(), accelerometerData.getAz()));
+
+		gravity[0] = G * gravity[0] + (1 - G) * accelerometerData.getAx().floatValue();
+		gravity[1] = G * gravity[1] + (1 - G) * accelerometerData.getAy().floatValue();
+		gravity[2] = G * gravity[2] + (1 - G) * accelerometerData.getAz().floatValue();
+
+		linearAcceleration[0] = accelerometerData.getAx().floatValue() - gravity[0];
+		linearAcceleration[1] = accelerometerData.getAx().floatValue() - gravity[1];
+		linearAcceleration[2] = accelerometerData.getAx().floatValue() - gravity[2];
                 videoSurface.repaint();
+
+            try {
+                featureCallback.features(toByteArray(image), WIDTH, HEIGHT, linearAcceleration);
+            } catch (IOException ex) {
+                Logger.getLogger(MlAutobot.class.getName()).log(Level.SEVERE, null, ex);
+            }
+
+                accelLabel.setText(String.format("x: %f y: %f z: %f", linearAcceleration[0],
+                        linearAcceleration[0], linearAcceleration[0]));
             //}
         }
     }
@@ -419,10 +366,10 @@ public class MlAutobot implements BufferedImageCaptureInterface, AccelerometerDa
     /**
      * @param args the command line arguments
      */
-    public static void main(String[] args) {
+/*    public static void main(String[] args) {
         boolean discover = new NativeDiscovery().discover();
         SwingUtilities.invokeLater(() -> {
-            MlAutobot mlAutobot = new MlAutobot(args);
+            MlAutobot mlAutobot = new MlAutobot(new Driver(featureOutFile, theta1File, theta2File));
         });
-    }
+    }*/
 }
