@@ -18,28 +18,14 @@ package mlautobot;
 
 import com.sun.image.codec.jpeg.JPEGCodec;
 import com.sun.image.codec.jpeg.JPEGImageEncoder;
-import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GraphicsEnvironment;
-import java.awt.event.ActionEvent;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
-import javax.swing.JButton;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JTextField;
-import javax.swing.SwingUtilities;
-import mlautobot.interfaces.BufferedImageCaptureInterface;
-import uk.co.caprica.vlcj.discovery.NativeDiscovery;
-import uk.co.caprica.vlcj.player.MediaPlayer;
-import uk.co.caprica.vlcj.player.MediaPlayerEventAdapter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
@@ -65,22 +51,22 @@ import uk.co.caprica.vlcj.player.direct.format.RV32BufferFormat;
  */
 public class MlAutobot implements AccelerometerDataCaptureInterface {
 
-    //private final String MRL = "http://192.168.0.4:8080/video";
-    private final JFrame frame;
+    private final String MRL = "http://192.168.0.4:8080";
+    //private final JFrame frame;
     //public static final int WIDTH = 600;
     //public static final int HEIGHT = 400;
     public static final int WIDTH = 600;
     public static final int HEIGHT = 400;
-    private final JPanel videoSurface;
+    //private final JPanel videoSurface;
     private final BufferedImage image;
     //private final DirectMediaPlayerComponent mediaPlayerComponent;
     private final DirectMediaPlayer directMediaPlayer;
     //private final EmbeddedMediaPlayerComponent mediaPlayerComponent;
-    private final JLabel mrlLabel;
-    private final JLabel accelLabel;
-    private final JTextField mrlTextField;
-    private final JButton startButton;
-    private final JButton pauseButton;
+    //private final JLabel mrlLabel;
+    //private final JLabel accelLabel;
+    //private final JTextField mrlTextField;
+    //private final JButton startButton;
+    //private final JButton pauseButton;
     //private final JButton statsButton;
     private URL url;
     private boolean FOUND_DATA = false;
@@ -99,20 +85,20 @@ public class MlAutobot implements AccelerometerDataCaptureInterface {
 
     public MlAutobot(FeatureCallback featureCallback) {
         this.featureCallback = featureCallback;
-        frame = new JFrame("ML Autobot Monitor");
-        frame.setBounds(100, 100, WIDTH, HEIGHT);
-        frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
-        frame.addWindowListener(new WindowAdapter() {
+        //frame = new JFrame("ML Autobot Monitor");
+        //frame.setBounds(100, 100, WIDTH, HEIGHT);
+        //frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+        /*frame.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
                 //mediaPlayerComponent.release();
                 directMediaPlayer.release();
                 System.exit(0);
             }
-        });
+        });*/
         
-        videoSurface = new VideoSurfacePanel();
-        videoSurface.setLayout(new BorderLayout());
+        //videoSurface = new VideoSurfacePanel();
+        //videoSurface.setLayout(new BorderLayout());
 
         BufferFormatCallback bufferFormatCallback = (int sourceWidth, int sourceHeight) -> new RV32BufferFormat(WIDTH, HEIGHT);
 
@@ -140,25 +126,25 @@ public class MlAutobot implements AccelerometerDataCaptureInterface {
             .getDefaultConfiguration()
             .createCompatibleImage(WIDTH, HEIGHT);
         
-        mrlLabel = new JLabel("MRL");
-        mrlTextField = new JTextField("http://192.168.0.8:8080", 50);
-        JPanel mrlPane = new JPanel();
-        mrlPane.setLayout(new BorderLayout(10, 20));
-        mrlPane.add(mrlLabel, BorderLayout.WEST);
-        mrlPane.add(mrlTextField, BorderLayout.CENTER);
-        accelLabel = new JLabel();
-        mrlPane.add(accelLabel, BorderLayout.SOUTH);
+        //mrlLabel = new JLabel("MRL");
+        //mrlTextField = new JTextField("http://192.168.0.8:8080", 50);
+        //JPanel mrlPane = new JPanel();
+        //mrlPane.setLayout(new BorderLayout(10, 20));
+        //mrlPane.add(mrlLabel, BorderLayout.WEST);
+        //mrlPane.add(mrlTextField, BorderLayout.CENTER);
+        //accelLabel = new JLabel();
+        //mrlPane.add(accelLabel, BorderLayout.SOUTH);
 
-        JPanel controlsPane = new JPanel();
-        startButton = new JButton("Start");
-        controlsPane.add(startButton);
-        pauseButton = new JButton("Pause");
-        controlsPane.add(pauseButton);
+        //JPanel controlsPane = new JPanel();
+        //startButton = new JButton("Start");
+        //controlsPane.add(startButton);
+        //pauseButton = new JButton("Pause");
+        //controlsPane.add(pauseButton);
         
-        videoSurface.add(mrlPane, BorderLayout.NORTH);
-        videoSurface.add(controlsPane, BorderLayout.SOUTH);
+        //videoSurface.add(mrlPane, BorderLayout.NORTH);
+        //videoSurface.add(controlsPane, BorderLayout.SOUTH);
 
-        startButton.addActionListener((ActionEvent e) -> {
+        /*startButton.addActionListener((ActionEvent e) -> {
             if(!mrlTextField.getText().isEmpty()) {
                 //mediaPlayerComponent.getMediaPlayer().playMedia(mrlTextField.getText() + "/video");
                 directMediaPlayer.playMedia(mrlTextField.getText() + "/video");
@@ -169,7 +155,9 @@ public class MlAutobot implements AccelerometerDataCaptureInterface {
             //mediaPlayerComponent.getMediaPlayer().pause();
             directMediaPlayer.pause();
         });
-
+        */
+        directMediaPlayer.playMedia(MRL + "/video");
+        /*
         directMediaPlayer.addMediaPlayerEventListener(new MediaPlayerEventAdapter() {
             @Override
             public void playing(MediaPlayer mediaPlayer) {
@@ -202,15 +190,15 @@ public class MlAutobot implements AccelerometerDataCaptureInterface {
                 });
             }
         });
-
-        frame.setContentPane(videoSurface);
-        frame.setVisible(true);
+        */
+        //frame.setContentPane(videoSurface);
+        //frame.setVisible(true);
 
     }
 
-    private void closeWindow() {
-        frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
-    }
+    //private void closeWindow() {
+    //    frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
+    //}
 
     public static BufferedImage convertToGrayScale(BufferedImage image) {
         BufferedImage result = new BufferedImage(
@@ -243,7 +231,8 @@ public class MlAutobot implements AccelerometerDataCaptureInterface {
     public AccelerometerData getAccelerometerData() {
         accelerometerData = new AccelerometerData();
         try {
-            url = new URL(mrlTextField.getText() + "/sensors.json");
+            //url = new URL(mrlTextField.getText() + "/sensors.json");
+            url = new URL(MRL + "/sensors.json");
             inputStream = url.openStream();
             jsonParser = Json.createParser(inputStream);
             while (jsonParser.hasNext()) {
@@ -349,7 +338,7 @@ public class MlAutobot implements AccelerometerDataCaptureInterface {
 		linearAcceleration[0] = accelerometerData.getAx().floatValue() - gravity[0];
 		linearAcceleration[1] = accelerometerData.getAx().floatValue() - gravity[1];
 		linearAcceleration[2] = accelerometerData.getAx().floatValue() - gravity[2];
-                videoSurface.repaint();
+                //videoSurface.repaint();
 
             try {
                 featureCallback.features(toByteArray(image), WIDTH, HEIGHT, linearAcceleration);
@@ -357,8 +346,8 @@ public class MlAutobot implements AccelerometerDataCaptureInterface {
                 Logger.getLogger(MlAutobot.class.getName()).log(Level.SEVERE, null, ex);
             }
 
-                accelLabel.setText(String.format("x: %f y: %f z: %f", linearAcceleration[0],
-                        linearAcceleration[0], linearAcceleration[0]));
+                //accelLabel.setText(String.format("x: %f y: %f z: %f", linearAcceleration[0],
+                //        linearAcceleration[0], linearAcceleration[0]));
             //}
         }
     }
