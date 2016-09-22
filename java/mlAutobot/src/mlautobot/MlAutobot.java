@@ -51,7 +51,7 @@ import uk.co.caprica.vlcj.player.direct.format.RV32BufferFormat;
  */
 public class MlAutobot implements AccelerometerDataCaptureInterface {
 
-    private final String MRL = "http://192.168.0.4:8080";
+    private final String MRL = "http://192.168.0.8:8080";
     //private final JFrame frame;
     //public static final int WIDTH = 600;
     //public static final int HEIGHT = 400;

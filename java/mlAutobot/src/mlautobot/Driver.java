@@ -66,8 +66,11 @@ public class Driver extends JFrame implements FeatureCallback, KeyListener,
 	private Point prevMousePoint;
 	private Predictor predictor;
 
+        private MlAutobot mlAutobot;
+        
 	public Driver(/*SerialWrapper serial,*/ File featureOutFile, String theta1File,
 	    String theta2File) {
+                this.mlAutobot = new MlAutobot(this);
 		//this.serial = serial;
 		try {
 			RealMatrix theta1 = NeuralNetwork
@@ -100,10 +103,10 @@ public class Driver extends JFrame implements FeatureCallback, KeyListener,
 	}
 
 	public static void main(String[] args) {
-		if (args.length != 1) {
+		/*if (args.length != 1) {
 			System.out.println("Driver\nSyntax:  Driver [serial port path]");
 			return;
-		}
+		}*/
 		//String serialPort = args[0];
 		File out = null;
 		try {
@@ -113,6 +116,7 @@ public class Driver extends JFrame implements FeatureCallback, KeyListener,
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+                
 
 		Driver window = new Driver(/*new RxTxSerialWrapper(serialPort),*/ out,
 		    "data/theta1.dat", "data/theta2.dat");
