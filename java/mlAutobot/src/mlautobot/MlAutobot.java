@@ -18,14 +18,10 @@ package mlautobot;
 
 import com.sun.image.codec.jpeg.JPEGCodec;
 import com.sun.image.codec.jpeg.JPEGImageEncoder;
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
+import com.sun.jna.Memory;
 import java.awt.GraphicsEnvironment;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
-import javax.swing.JPanel;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
@@ -36,12 +32,14 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.json.Json;
 import javax.json.stream.JsonParser;
+import mlautobot.format.GREYBufferFormat;
 import mlautobot.interfaces.AccelerometerDataCaptureInterface;
 import uk.co.caprica.vlcj.player.MediaPlayerFactory;
+import uk.co.caprica.vlcj.player.direct.BufferFormat;
 import uk.co.caprica.vlcj.player.direct.BufferFormatCallback;
 import uk.co.caprica.vlcj.player.direct.DirectMediaPlayer;
-import uk.co.caprica.vlcj.player.direct.RenderCallbackAdapter;
-import uk.co.caprica.vlcj.player.direct.format.RV32BufferFormat;
+import uk.co.caprica.vlcj.player.direct.RenderCallback;
+import uk.co.caprica.vlcj.runtime.streams.NativeStreams;
 
 /**
  *
@@ -55,8 +53,8 @@ public class MlAutobot implements AccelerometerDataCaptureInterface {
     //private final JFrame frame;
     //public static final int WIDTH = 600;
     //public static final int HEIGHT = 400;
-    public static final int WIDTH = 600;
-    public static final int HEIGHT = 400;
+    public static final int WIDTH = 144;
+    public static final int HEIGHT = 176;
     //private final JPanel videoSurface;
     private final BufferedImage image;
     //private final DirectMediaPlayerComponent mediaPlayerComponent;
@@ -77,48 +75,24 @@ public class MlAutobot implements AccelerometerDataCaptureInterface {
     private InputStream inputStream;
     private JsonParser jsonParser;
     private AccelerometerData accelerometerData;
-    private float[] gravity = new float[3];
-    private float[] linearAcceleration = new float[3];
+    private final float[] gravity;
+    private final float[] linearAcceleration;
     private final float G = 0.8f;
     private final FeatureCallback featureCallback;
     private int frameCounter;
 
     public MlAutobot(FeatureCallback featureCallback) {
         this.featureCallback = featureCallback;
-        //frame = new JFrame("ML Autobot Monitor");
-        //frame.setBounds(100, 100, WIDTH, HEIGHT);
-        //frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
-        /*frame.addWindowListener(new WindowAdapter() {
-            @Override
-            public void windowClosing(WindowEvent e) {
-                //mediaPlayerComponent.release();
-                directMediaPlayer.release();
-                System.exit(0);
-            }
-        });*/
-        
-        //videoSurface = new VideoSurfacePanel();
-        //videoSurface.setLayout(new BorderLayout());
-
-        BufferFormatCallback bufferFormatCallback = (int sourceWidth, int sourceHeight) -> new RV32BufferFormat(WIDTH, HEIGHT);
+        gravity = new float[3];
+        linearAcceleration = new float[3];
+        NativeStreams nativeStreams = new NativeStreams("/dev/stdout", "/dev/null");
+        BufferFormatCallback bufferFormatCallback = (int sourceWidth, int sourceHeight) -> 
+                new GREYBufferFormat(WIDTH, HEIGHT);
 
         MediaPlayerFactory mediaPlayerFactory = 
                 new MediaPlayerFactory("--no-video-title-show", "--grayscale");
         directMediaPlayer = mediaPlayerFactory.newDirectMediaPlayer(bufferFormatCallback, 
                 new MlAutobotRenderCallbackAdapter());
-/*        mediaPlayerComponent =
-                new DirectMediaPlayerComponent(bufferFormatCallback) {
-            @Override
-            protected String[] onGetMediaPlayerFactoryArgs() {
-                return new String[] {"--no-video-title-show"};
-            }
-            @Override
-            protected RenderCallback onGetRenderCallback() {
-                return new MlAutobotRenderCallbackAdapter();
-            }
-        };
-  */      
-        //mediaPlayerComponent = new EmbeddedMediaPlayerComponent();
         
         image = GraphicsEnvironment
             .getLocalGraphicsEnvironment()
@@ -144,78 +118,19 @@ public class MlAutobot implements AccelerometerDataCaptureInterface {
         //videoSurface.add(mrlPane, BorderLayout.NORTH);
         //videoSurface.add(controlsPane, BorderLayout.SOUTH);
 
-        /*startButton.addActionListener((ActionEvent e) -> {
-            if(!mrlTextField.getText().isEmpty()) {
-                //mediaPlayerComponent.getMediaPlayer().playMedia(mrlTextField.getText() + "/video");
-                directMediaPlayer.playMedia(mrlTextField.getText() + "/video");
-            }
-        });
-        
-        pauseButton.addActionListener((ActionEvent e) -> {
-            //mediaPlayerComponent.getMediaPlayer().pause();
-            directMediaPlayer.pause();
-        });
-        */
         directMediaPlayer.playMedia(MRL + "/video");
-        /*
-        directMediaPlayer.addMediaPlayerEventListener(new MediaPlayerEventAdapter() {
-            @Override
-            public void playing(MediaPlayer mediaPlayer) {
-                SwingUtilities.invokeLater(() -> {
-                    frame.setTitle(String.format(
-                            "Showing %s",
-                            directMediaPlayer.getMediaMeta().getTitle()
-                    ));
-                });
-            }
-
-            @Override
-            public void finished(MediaPlayer mediaPlayer) {
-                SwingUtilities.invokeLater(() -> {
-                    closeWindow();
-                });
-            }
-
-            @Override
-            public void error(MediaPlayer mediaPlayer) {
-                SwingUtilities.invokeLater(() -> {
-                    JOptionPane.showMessageDialog(
-                            frame,
-                            "Failed to play media",
-                            "Error",
-                            JOptionPane.ERROR_MESSAGE
-                    );
-                    // lets belive in second chances
-                    //closeWindow();
-                });
-            }
-        });
-        */
-        //frame.setContentPane(videoSurface);
-        //frame.setVisible(true);
-
-    }
-
-    //private void closeWindow() {
-    //    frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
-    //}
-
-    public static BufferedImage convertToGrayScale(BufferedImage image) {
-        BufferedImage result = new BufferedImage(
-                image.getWidth(),
-                image.getHeight(),
-                BufferedImage.TYPE_BYTE_GRAY);
-        Graphics g = result.getGraphics();
-        g.drawImage(image, 0, 0, null);
-        g.dispose();
-        return result;
     }
 
     public byte[] toByteArray(BufferedImage image) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         JPEGImageEncoder encoder = JPEGCodec.createJPEGEncoder(baos);
         encoder.encode(image);
-        return baos.toByteArray();
+        baos.flush();
+        byte[] result = baos.toByteArray();
+        System.out.println("image (size: " + image.getHeight() + ", " +
+                image.getWidth() + ") converted to byte array size: " + result.length
+        + " (/ 176 = " + result.length/176 + ")");
+        return result;
     }
 
 /**
@@ -296,39 +211,63 @@ public class MlAutobot implements AccelerometerDataCaptureInterface {
         return null;
     }
 
-    private class VideoSurfacePanel extends JPanel {
-        private VideoSurfacePanel() {
-            adjustVideoSurfacePanel();
-        }
+public abstract class RenderCallbackAdapter implements RenderCallback {
 
-        private void adjustVideoSurfacePanel() {
-            setBackground(Color.black);
-            setOpaque(true);
-            setPreferredSize(new Dimension(MlAutobot.WIDTH, MlAutobot.HEIGHT));
-            setMinimumSize(new Dimension(MlAutobot.WIDTH, MlAutobot.HEIGHT));
-            setMaximumSize(new Dimension(MlAutobot.WIDTH, MlAutobot.HEIGHT));
-        }
+    /**
+     * Video data buffer.
+     */
+    private final int[] rgbBuffer;
 
-        @Override
-        protected void paintComponent(Graphics g) {
-            Graphics2D g2 = (Graphics2D) g;
-            g2.drawImage(convertToGrayScale(image), null, 0, 0);
-        }
+    /**
+     * Create a new render call-back.
+     *
+     * @param rgbBuffer video data buffer
+     */
+    public RenderCallbackAdapter(int[] rgbBuffer) {
+        this.rgbBuffer = rgbBuffer;
     }
 
-    private class MlAutobotRenderCallbackAdapter extends RenderCallbackAdapter {
+    @Override
+    public void display(DirectMediaPlayer mediaPlayer, Memory[] nativeBuffer, BufferFormat bufferFormat) {
+        nativeBuffer[0].getByteBuffer(0L, nativeBuffer[0].size()).asIntBuffer().get(rgbBuffer(), 0, bufferFormat.getHeight() * bufferFormat.getWidth());
+        onDisplay(mediaPlayer, rgbBuffer());
+    }
 
-        private MlAutobotRenderCallbackAdapter() {
-            super(new int[WIDTH * HEIGHT]);
-        }
+    /**
+     * Get the video data buffer.
+     *
+     * @return video buffer
+     */
+    public int[] rgbBuffer() {
+        return rgbBuffer;
+    }
+
+    /**
+     * Template method invoked when a new frame of video data is ready.
+     *
+     * @param mediaPlayer media player
+     * @param rgbBuffer video data buffer
+     */
+    protected abstract void onDisplay(DirectMediaPlayer mediaPlayer, int[] rgbBuffer);
+}
+    
+
+
+    private class MlAutobotRenderCallbackAdapter implements RenderCallback {
 
         @Override
-        protected void onDisplay(DirectMediaPlayer mediaPlayer, int[] rgbBuffer) {
+        public void display(DirectMediaPlayer mediaPlayer, Memory[] nativeBuffer, BufferFormat bufferFormat) {
+            //nativeBuffer[0].getByteBuffer(0L, nativeBuffer[0].size()).asIntBuffer().get(rgbBuffer(), 0, bufferFormat.getHeight() * bufferFormat.getWidth());
+            //onDisplay(mediaPlayer, rgbBuffer());
+            onDisplay(mediaPlayer, nativeBuffer[0].getByteArray(0L, (int) nativeBuffer[0].size()));
+    }
+
+        protected void onDisplay(DirectMediaPlayer mediaPlayer, byte[] imageBuffer) {
             frameCounter++;
             //if(frameCounter>1) {
                 //frameCounter = 0;
                 // Simply copy buffer to the image and repaint
-                image.setRGB(0, 0, WIDTH, HEIGHT, rgbBuffer, 0, WIDTH);
+                //image.setRGB(0, 0, WIDTH, HEIGHT, rgbBuffer, 0, WIDTH);
                 accelerometerData = getAccelerometerData();
 
 		gravity[0] = G * gravity[0] + (1 - G) * accelerometerData.getAx().floatValue();
@@ -338,27 +277,11 @@ public class MlAutobot implements AccelerometerDataCaptureInterface {
 		linearAcceleration[0] = accelerometerData.getAx().floatValue() - gravity[0];
 		linearAcceleration[1] = accelerometerData.getAx().floatValue() - gravity[1];
 		linearAcceleration[2] = accelerometerData.getAx().floatValue() - gravity[2];
-                //videoSurface.repaint();
-
-            try {
-                featureCallback.features(toByteArray(image), WIDTH, HEIGHT, linearAcceleration);
-            } catch (IOException ex) {
-                Logger.getLogger(MlAutobot.class.getName()).log(Level.SEVERE, null, ex);
-            }
-
-                //accelLabel.setText(String.format("x: %f y: %f z: %f", linearAcceleration[0],
-                //        linearAcceleration[0], linearAcceleration[0]));
+                //System.out.println("Sending image bytes, size: " + imageBuffer.length + 
+                //        "(should be: " + (176*144) + ")\n with buffer format: " +
+                //        new GREYBufferFormat(176,144).toString());
+                featureCallback.features(imageBuffer, WIDTH, HEIGHT, linearAcceleration);
             //}
         }
     }
-
-    /**
-     * @param args the command line arguments
-     */
-/*    public static void main(String[] args) {
-        boolean discover = new NativeDiscovery().discover();
-        SwingUtilities.invokeLater(() -> {
-            MlAutobot mlAutobot = new MlAutobot(new Driver(featureOutFile, theta1File, theta2File));
-        });
-    }*/
 }
