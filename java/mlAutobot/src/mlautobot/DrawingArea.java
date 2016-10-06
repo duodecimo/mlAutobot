@@ -2,9 +2,7 @@ package mlautobot;
 
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Font;
 import java.awt.Graphics;
-import java.nio.channels.SelectableChannel;
 
 import javax.swing.JPanel;
 

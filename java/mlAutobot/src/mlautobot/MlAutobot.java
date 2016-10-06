@@ -50,7 +50,7 @@ import uk.co.caprica.vlcj.runtime.streams.NativeStreams;
  */
 public class MlAutobot implements AccelerometerDataCaptureInterface {
 
-    private final String MRL = "http://192.168.0.5:8080";
+    private final String MRL = "http://192.168.0.3:8080";
     public static final int WIDTH = 144;
     public static final int HEIGHT = 176;
     private final BufferedImage image;
@@ -74,6 +74,7 @@ public class MlAutobot implements AccelerometerDataCaptureInterface {
         this.featureCallback = featureCallback;
         gravity = new float[3];
         linearAcceleration = new float[3];
+        //this redirects error outputs ...
         NativeStreams nativeStreams = new NativeStreams("/dev/stdout", "/dev/null");
         BufferFormatCallback bufferFormatCallback = (int sourceWidth, int sourceHeight)
                 -> new GREYBufferFormat(WIDTH, HEIGHT);
@@ -184,53 +185,15 @@ public class MlAutobot implements AccelerometerDataCaptureInterface {
         return null;
     }
 
-    public abstract class RenderCallbackAdapter implements RenderCallback {
-
-        /**
-         * Video data buffer.
-         */
-        private final int[] rgbBuffer;
-
-        /**
-         * Create a new render call-back.
-         *
-         * @param rgbBuffer video data buffer
-         */
-        public RenderCallbackAdapter(int[] rgbBuffer) {
-            this.rgbBuffer = rgbBuffer;
-        }
-
-        @Override
-        public void display(DirectMediaPlayer mediaPlayer, Memory[] nativeBuffer, BufferFormat bufferFormat) {
-            nativeBuffer[0].getByteBuffer(0L, nativeBuffer[0].size()).asIntBuffer().get(rgbBuffer(), 0, bufferFormat.getHeight() * bufferFormat.getWidth());
-            onDisplay(mediaPlayer, rgbBuffer());
-        }
-
-        /**
-         * Get the video data buffer.
-         *
-         * @return video buffer
-         */
-        public int[] rgbBuffer() {
-            return rgbBuffer;
-        }
-
-        /**
-         * Template method invoked when a new frame of video data is ready.
-         *
-         * @param mediaPlayer media player
-         * @param rgbBuffer video data buffer
-         */
-        protected abstract void onDisplay(DirectMediaPlayer mediaPlayer, int[] rgbBuffer);
-    }
-
     private class MlAutobotRenderCallbackAdapter implements RenderCallback {
 
         @Override
         public void display(DirectMediaPlayer mediaPlayer, Memory[] nativeBuffer, BufferFormat bufferFormat) {
-            //nativeBuffer[0].getByteBuffer(0L, nativeBuffer[0].size()).asIntBuffer().get(rgbBuffer(), 0, bufferFormat.getHeight() * bufferFormat.getWidth());
-            //onDisplay(mediaPlayer, rgbBuffer());
             onDisplay(mediaPlayer, nativeBuffer[0].getByteArray(0L, (int) nativeBuffer[0].size()));
+            System.out.println("Buffer Format height: " + bufferFormat.getHeight() +
+                    " width: " + bufferFormat.getWidth() + 
+                    " Native Buffer length: " + nativeBuffer[0].size());
+            /*176x144=25344 Im getting 25376, 32 bytes exceeding*/
         }
 
         protected void onDisplay(DirectMediaPlayer mediaPlayer, byte[] imageBuffer) {
