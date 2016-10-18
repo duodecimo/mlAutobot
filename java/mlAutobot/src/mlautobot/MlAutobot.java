@@ -50,7 +50,7 @@ import uk.co.caprica.vlcj.runtime.streams.NativeStreams;
  */
 public class MlAutobot implements AccelerometerDataCaptureInterface {
 
-    private final String MRL = "http://192.168.0.3:8080";
+    private final String MRL = "http://192.168.0.5:8080";
     public static final int WIDTH = 144;
     public static final int HEIGHT = 176;
     private final BufferedImage image;
@@ -191,9 +191,14 @@ public class MlAutobot implements AccelerometerDataCaptureInterface {
         public void display(DirectMediaPlayer mediaPlayer, Memory[] nativeBuffer, BufferFormat bufferFormat) {
             onDisplay(mediaPlayer, nativeBuffer[0].getByteArray(0L, (int) nativeBuffer[0].size()));
             System.out.println("Buffer Format height: " + bufferFormat.getHeight() +
-                    " width: " + bufferFormat.getWidth() + 
-                    " Native Buffer length: " + nativeBuffer[0].size());
-            /*176x144=25344 Im getting 25376, 32 bytes exceeding*/
+            " width: " + bufferFormat.getWidth() +
+            " Native Buffer length: " + nativeBuffer[0].size());
+            
+            /*176x144=25344 Im getting 25376, 32 bytes exceeding so lets cap it*/
+            /*            onDisplay(mediaPlayer, nativeBuffer[32].getByteArray(0L, (int) nativeBuffer[32].size()));
+            System.out.println("Buffer Format height: " + bufferFormat.getHeight() +
+            " width: " + bufferFormat.getWidth() +
+            " Native Buffer length: " + nativeBuffer[32].size());*/
         }
 
         protected void onDisplay(DirectMediaPlayer mediaPlayer, byte[] imageBuffer) {

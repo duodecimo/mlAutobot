@@ -17,6 +17,7 @@ import javax.swing.JPanel;
 
 import org.apache.commons.math.linear.RealMatrix;
 import mlautobot.Predictor.PredictionListener;
+import sun.security.util.Length;
 
 /**
  * Part of NNRCCar - a project to create a self driving radio controlled car.
@@ -136,11 +137,16 @@ public class Driver extends JFrame implements FeatureCallback, KeyListener,
     @Override
     public void features(byte[] features, int width, int height,
             float[] accelerometerFeatures) {
+        byte[] lessFeatures = new byte[features.length - 32];
+        int ii, jj;
+        for(ii=32, jj=0; ii<features.length; ii++, jj++) {
+            lessFeatures[jj] = features[ii];
+        }
         // This method is called ever time new features have been received from
         // the camera via FeatureServer.
         if (driveMode == Mode.MANUAL_RECORD && featuresOut != null) {
             long now = System.currentTimeMillis();
-            writeFeatures(new FeatureFrame(features, left, right, forward, reverse,
+            writeFeatures(new FeatureFrame(lessFeatures, left, right, forward, reverse,
                     (int) (now - leftLastChangeMs), (int) (now - rightLastChangeMs),
                     (int) (now - forwardLastChangeMs), (int) (now - reverseLastChangeMs),
                     accelerometerFeatures));
@@ -196,11 +202,44 @@ public class Driver extends JFrame implements FeatureCallback, KeyListener,
         new Thread(new Runnable() {
             @Override
             public void run() {
-                featuresOut.println(ff.getFeatures().length + " "
-                        + (ff.isLeft() ? "1" : "0") + " " + (ff.isRight() ? "1" : "0") + " "
-                        + (ff.isForward() ? "1" : "0") + " " + (ff.isReverse() ? "1" : "0")
-                        + " ");
-                for (int i = 0; i < ff.getFeatures().length; i++) {
+                // duo 18 Out 2016
+                // We must change things here:
+                // consider we have 4 possible movements {left, right, foward, reverse}.
+                // instead of adding {0,1} for each possible movement to machine learning trainning,
+                // we must add just one value {1, 2, ..., max movement}, the index of the
+                // movement. Futhermore, there seems to be combinations of these movements,
+                // like foward+left, reverse+left, ...
+                // so lets define it: {fs, fl, fr, rs, rl, rr, nm} short for
+                // {fowardStraight, fowardLeft, fowardRight, reverseStraight, reverseLeft,
+                // reverseRight, noMovement}, a total of 7 movements.
+                int finalMovement;
+                if(ff.isForward()) {
+                    if(ff.isLeft()) {
+                       finalMovement = 2; // fl 
+                    } else if(ff.isRight()) {
+                        finalMovement = 3; // fr
+                    } else {
+                        finalMovement = 1; // fs
+                    }
+                } else if(ff.isReverse()) {
+                    if(ff.isLeft()) {
+                       finalMovement = 5; // rl
+                    } else if(ff.isRight()) {
+                        finalMovement = 6; // rr
+                    } else {
+                        finalMovement = 4; // rs
+                    }
+                } else {
+                    finalMovement = 7; // nm
+                }
+                /*                featuresOut.println(ff.getFeatures().length + " "
+                + (ff.isLeft() ? "1" : "0") + " " + (ff.isRight() ? "1" : "0") + " "
+                + (ff.isForward() ? "1" : "0") + " " + (ff.isReverse() ? "1" : "0")
+                + " ");*/
+                featuresOut.println((ff.getFeatures().length) + " "
+                + finalMovement
+                + " ");
+                for (int i = 0; i < (ff.getFeatures().length); i++) {
                     byte[] features = ff.getFeatures();
                     featuresOut.print(features[i] + " ");
                 }
