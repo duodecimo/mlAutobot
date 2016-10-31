@@ -32,7 +32,7 @@ class DrawingArea extends JPanel {
 
   public DrawingArea() {
     //setPreferredSize(new Dimension(144 * 2, 176 * 2));
-    setPreferredSize(new Dimension(MlAutobot.WIDTH * 2, MlAutobot.HEIGHT * 2));
+    setPreferredSize(new Dimension(MlAutobot.FRAMEWIDTH * 2, MlAutobot.FRAMEHEIGHT * 2));
   }
 
   public synchronized void paintComponent(Graphics g) {

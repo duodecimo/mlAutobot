@@ -16,30 +16,38 @@
  */
 package mlautobot;
 
-import com.sun.image.codec.jpeg.JPEGCodec;
-import com.sun.image.codec.jpeg.JPEGImageEncoder;
-import com.sun.jna.Memory;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.GraphicsEnvironment;
+import java.awt.Point;
+import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseMotionListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import javax.json.Json;
-import javax.json.stream.JsonParser;
-import javax.swing.SwingUtilities;
-import mlautobot.format.GREYBufferFormat;
-import mlautobot.interfaces.AccelerometerDataCaptureInterface;
-import uk.co.caprica.vlcj.player.MediaPlayerFactory;
-import uk.co.caprica.vlcj.player.direct.BufferFormat;
+import java.io.PrintStream;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
+import org.apache.commons.math.linear.RealMatrix;
+import uk.co.caprica.vlcj.component.DirectMediaPlayerComponent;
+import uk.co.caprica.vlcj.discovery.NativeDiscovery;
 import uk.co.caprica.vlcj.player.direct.BufferFormatCallback;
 import uk.co.caprica.vlcj.player.direct.DirectMediaPlayer;
 import uk.co.caprica.vlcj.player.direct.RenderCallback;
+import uk.co.caprica.vlcj.player.direct.RenderCallbackAdapter;
+import uk.co.caprica.vlcj.player.direct.format.RV32BufferFormat;
 import uk.co.caprica.vlcj.runtime.streams.NativeStreams;
 
 /**
@@ -48,179 +56,254 @@ import uk.co.caprica.vlcj.runtime.streams.NativeStreams;
  * @see https://duodecimo.github.io/mlAutobot/
  *
  */
-public class MlAutobot implements AccelerometerDataCaptureInterface {
+public class MlAutobot extends JFrame implements KeyListener, MouseMotionListener {
 
-    private final String MRL = "http://192.168.0.5:8080";
-    public static final int WIDTH = 144;
-    public static final int HEIGHT = 176;
-    private final BufferedImage image;
-    private final DirectMediaPlayer directMediaPlayer;
-    private URL url;
-    private boolean FOUND_DATA = false;
-    private boolean INDEX_READ = false;
-    private boolean AX_READ = false;
-    private boolean AY_READ = false;
-    private String index, ax, ay, az;
-    private InputStream inputStream;
-    private JsonParser jsonParser;
-    private AccelerometerData accelerometerData;
-    private final float[] gravity;
-    private final float[] linearAcceleration;
-    private final float G = 0.8f;
-    private final FeatureCallback featureCallback;
+    private final String MRL = "http://192.168.0.12:8080";
+    public static final int FRAMEWIDTH = 40;
+    public static final int FRAMEHEIGHT = 30;
+    private DirectMediaPlayerComponent mediaPlayerComponent;
     private int frameCounter;
 
-    public MlAutobot(FeatureCallback featureCallback) {
-        this.featureCallback = featureCallback;
-        gravity = new float[3];
-        linearAcceleration = new float[3];
-        //this redirects error outputs ...
-        NativeStreams nativeStreams = new NativeStreams("/dev/stdout", "/dev/null");
-        BufferFormatCallback bufferFormatCallback = (int sourceWidth, int sourceHeight)
-                -> new GREYBufferFormat(WIDTH, HEIGHT);
+    private final JPanel mainPanel;
+    private final JLabel mrlLabel;
+    private final JTextField mrlTextFiled;
+    private final JButton mrlButton;
+    private final JPanel videoSurface;
+    private final BufferedImage image;
 
-        MediaPlayerFactory mediaPlayerFactory
-                = new MediaPlayerFactory("--no-video-title-show", "--grayscale");
-        directMediaPlayer = mediaPlayerFactory.newDirectMediaPlayer(bufferFormatCallback,
-                new MlAutobotRenderCallbackAdapter());
+    enum Mode {
+        MANUAL, MANUAL_RECORD, AUTOMATIC
+    };
+    private Mode driveMode = Mode.MANUAL;
+    private boolean left = false;
+    private boolean right;
+    private boolean forward;
+    private boolean reverse;
+    private long leftLastChangeMs = 1000;
+    private long rightLastChangeMs = 1000;
+    private long forwardLastChangeMs = 1000;
+    private long reverseLastChangeMs = 1000;
+    private PrintStream featuresOut;
+    private FeatureWriter featureWriter;
 
+    private NeuralNetwork nn;
+    private Point prevMousePoint;
+    private Predictor predictor;
+
+    public MlAutobot(File featureOutFile, String theta1File,
+            String theta2File, JPanel mainPanel) {
+        this.mainPanel = mainPanel;
+        try {
+            RealMatrix theta1 = NeuralNetwork
+                    .loadMatrixFromOctaveDatFile("data/theta1.dat");
+            RealMatrix theta2 = NeuralNetwork
+                    .loadMatrixFromOctaveDatFile("data/theta2.dat");
+            nn = new NeuralNetwork(theta1, theta2);
+
+            this.featuresOut = new PrintStream(featureOutFile);
+        } catch (FileNotFoundException e) {
+        }
+
+
+        mediaPlayerComponent = null;
+
+        mrlLabel = new JLabel("MRL:");
+        mrlTextFiled = new JTextField(MRL);
+        mrlButton = new JButton("Start");
+        videoSurface = new VideoSurfacePanel();
+        videoSurface.setBackground(Color.black);
+        videoSurface.setOpaque(true);
+        videoSurface.setPreferredSize(new Dimension(FRAMEWIDTH, FRAMEHEIGHT));
+        videoSurface.setMinimumSize(new Dimension(FRAMEWIDTH, FRAMEHEIGHT));
+        videoSurface.setMaximumSize(new Dimension(FRAMEWIDTH, FRAMEHEIGHT));
+        mainPanel.add(videoSurface, BorderLayout.CENTER);
         image = GraphicsEnvironment
                 .getLocalGraphicsEnvironment()
                 .getDefaultScreenDevice()
                 .getDefaultConfiguration()
-                .createCompatibleImage(WIDTH, HEIGHT);
+                .createCompatibleImage(FRAMEWIDTH, FRAMEHEIGHT);
 
-        directMediaPlayer.playMedia(MRL + "/video");
-    }
-
-    public byte[] toByteArray(BufferedImage image) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        JPEGImageEncoder encoder = JPEGCodec.createJPEGEncoder(baos);
-        encoder.encode(image);
-        baos.flush();
-        byte[] result = baos.toByteArray();
-        /*System.out.println("image (size: " + image.getHeight() + ", " +
-                image.getWidth() + ") converted to byte array size: " + result.length
-        + " (/ 176 = " + result.length/176 + ")");
-         */
-        return result;
-    }
-
-    /**
-     * This method uses jsonp library from oracle. one needs both the compiling
-     * and run time libraries, just download the jar's files and add them to
-     * your project libraries. see
-     * http://search.maven.org/remotecontent?filepath=javax/json/javax.json-api/1.0/javax.json-api-1.0.jar
-     * and
-     * http://search.maven.org/remotecontent?filepath=org/glassfish/javax.json/1.0.4/javax.json-1.0.4.jar
-     *
-     * @return AccelerometerData that has 3 fields: index (BigInteger), ax, ay,
-     * az (BigDecimal).
-     */
-    @Override
-    public AccelerometerData getAccelerometerData() {
-        accelerometerData = new AccelerometerData();
-        try {
-            url = new URL(MRL + "/sensors.json");
-            inputStream = url.openStream();
-            jsonParser = Json.createParser(inputStream);
-            while (jsonParser.hasNext()) {
-                JsonParser.Event event = jsonParser.next();
-                switch (event) {
-                    case START_ARRAY:
-                    case END_ARRAY:
-                    case START_OBJECT:
-                    case END_OBJECT:
-                    case VALUE_FALSE:
-                    case VALUE_NULL:
-                    case VALUE_TRUE:
-                        //System.out.println(event.toString());
-                        break;
-                    case KEY_NAME:
-                        if (jsonParser.getString().equals("data")) {
-                            FOUND_DATA = true; // data Array found, need to read index
-                        }
-                        //System.out.print(event.toString() + " " +
-                        //        jsonParser.getString() + " - ");
-                        break;
-                    case VALUE_STRING:
-                    case VALUE_NUMBER:
-                        if (FOUND_DATA && !INDEX_READ) {
-                            index = jsonParser.getString();
-                            INDEX_READ = true;
-                        } else if (FOUND_DATA && INDEX_READ && !AX_READ) {
-                            ax = jsonParser.getString();
-                            AX_READ = true;
-                        } else if (FOUND_DATA && INDEX_READ && AX_READ && !AY_READ) {
-                            ay = jsonParser.getString();
-                            AY_READ = true;
-                        } else if (FOUND_DATA && INDEX_READ && AX_READ && AY_READ) {
-                            az = jsonParser.getString();
-                            AY_READ = false;
-                            AX_READ = false;
-                            INDEX_READ = false;
-                            FOUND_DATA = false;
-                            accelerometerData.setIndex(new BigInteger(index));
-                            accelerometerData.setAx(new BigDecimal(ax));
-                            accelerometerData.setAy(new BigDecimal(ay));
-                            accelerometerData.setAz(new BigDecimal(az));
-                            // no need to read further
-                            jsonParser.close();
-                            inputStream.close();
-                            return accelerometerData;
-                        }
-                        //System.out.println(event.toString() + " " +
-                        //parser.getString());
-                        break;
-                }
+        //this redirects error outputs ...
+        NativeStreams nativeStreams = new NativeStreams("/dev/stdout", "/dev/null");
+        BufferFormatCallback bufferFormatCallback = (int sourceWidth, int sourceHeight) -> new RV32BufferFormat(FRAMEWIDTH, FRAMEHEIGHT);
+        mediaPlayerComponent = new DirectMediaPlayerComponent(bufferFormatCallback) {
+            @Override
+            protected RenderCallback onGetRenderCallback() {
+                return new MlAutobotRenderCallbackAdapter();
             }
-            jsonParser.close();
-            inputStream.close();
-            return accelerometerData;
-        } catch (MalformedURLException ex) {
-            Logger.getLogger(this.getClass().getName()).log(Level.SEVERE, null, ex);
-        } catch (IOException ex) {
-            Logger.getLogger(this.getClass().getName()).log(Level.SEVERE, null, ex);
-        }
-        return null;
+        };
+        JPanel mrlPanel = new JPanel(new BorderLayout());
+        mrlPanel.add(mrlLabel, BorderLayout.WEST);
+        mrlPanel.add(mrlButton, BorderLayout.EAST);
+        mrlPanel.add(mrlTextFiled, BorderLayout.CENTER);
+        mainPanel.add(mrlPanel, BorderLayout.SOUTH);
+
+        mrlButton.addActionListener((ActionEvent e) -> {
+            mediaPlayerComponent.getMediaPlayer().playMedia(mrlTextFiled.getText() + "/video");
+        });
     }
 
-    private class MlAutobotRenderCallbackAdapter implements RenderCallback {
+    private class VideoSurfacePanel extends JPanel {
 
         @Override
-        public void display(DirectMediaPlayer mediaPlayer, Memory[] nativeBuffer, BufferFormat bufferFormat) {
-            onDisplay(mediaPlayer, nativeBuffer[0].getByteArray(0L, (int) nativeBuffer[0].size()));
-            System.out.println("Buffer Format height: " + bufferFormat.getHeight() +
-            " width: " + bufferFormat.getWidth() +
-            " Native Buffer length: " + nativeBuffer[0].size());
-            
-            /*176x144=25344 Im getting 25376, 32 bytes exceeding so lets cap it*/
-            /*            onDisplay(mediaPlayer, nativeBuffer[32].getByteArray(0L, (int) nativeBuffer[32].size()));
-            System.out.println("Buffer Format height: " + bufferFormat.getHeight() +
-            " width: " + bufferFormat.getWidth() +
-            " Native Buffer length: " + nativeBuffer[32].size());*/
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g;
+            g2.drawImage(image, null, 0, 0);
+        }
+    }
+
+    @Override
+    public void keyTyped(KeyEvent e) {
+    }
+
+    @Override
+    public void keyPressed(KeyEvent e) {
+        int keyCode = e.getKeyCode();
+        //System.out.println("keyPressed " + keyCode + " " + e.getWhen());
+        switch (keyCode) {
+            case KeyEvent.VK_LEFT:
+                left = true;
+                leftLastChangeMs = System.currentTimeMillis();
+                break;
+            case KeyEvent.VK_RIGHT:
+                right = true;
+                rightLastChangeMs = System.currentTimeMillis();
+                break;
+            case KeyEvent.VK_UP:
+                forward = true;
+                forwardLastChangeMs = System.currentTimeMillis();
+                break;
+            case KeyEvent.VK_DOWN:
+                reverse = true;
+                reverseLastChangeMs = System.currentTimeMillis();
+                break;
+            default:
+                break;
         }
 
-        protected void onDisplay(DirectMediaPlayer mediaPlayer, byte[] imageBuffer) {
-            SwingUtilities.invokeLater(() -> {
-                frameCounter++;
-                if(frameCounter>30) {
-                    frameCounter = 0;
-                    accelerometerData = getAccelerometerData();
+        e.consume();
+        //sendControls(left, right, forward, reverse);
+        //view.update(left, right, forward, reverse, driveMode);
+    }
 
-                    gravity[0] = G * gravity[0] + (1 - G) * accelerometerData.getAx().floatValue();
-                    gravity[1] = G * gravity[1] + (1 - G) * accelerometerData.getAy().floatValue();
-                    gravity[2] = G * gravity[2] + (1 - G) * accelerometerData.getAz().floatValue();
+    @Override
+    public void keyReleased(KeyEvent e) {
+        int keyCode = e.getKeyCode();
+        //System.out.println("keyReleased " + keyCode);
+        switch (keyCode) {
+            case KeyEvent.VK_LEFT:
+                left = false;
+                leftLastChangeMs = System.currentTimeMillis();
+                break;
+        //sendControls(left, right, forward, reverse);
+        //view.update(left, right, forward, reverse, driveMode);
+            case KeyEvent.VK_RIGHT:
+                right = false;
+                rightLastChangeMs = System.currentTimeMillis();
+                break;
+            case KeyEvent.VK_UP:
+                forward = false;
+                forwardLastChangeMs = System.currentTimeMillis();
+                break;
+            case KeyEvent.VK_DOWN:
+                reverse = false;
+                reverseLastChangeMs = System.currentTimeMillis();
+                break;
+            case KeyEvent.VK_M:
+                driveMode = Mode.MANUAL;
+                break;
+            case KeyEvent.VK_R:
+                driveMode = driveMode == Mode.MANUAL ? Mode.MANUAL_RECORD
+                        : Mode.MANUAL;
+                forward = driveMode == Mode.MANUAL_RECORD;
+                forwardLastChangeMs = System.currentTimeMillis();
+                break;
+            case KeyEvent.VK_A:
+                driveMode = Mode.AUTOMATIC;
+                break;
+            case KeyEvent.VK_F:
+                forward = !forward;
+                forwardLastChangeMs = System.currentTimeMillis();
+                break;
+            default:
+                break;
+        }
+    }
 
-                    linearAcceleration[0] = accelerometerData.getAx().floatValue() - gravity[0];
-                    linearAcceleration[1] = accelerometerData.getAx().floatValue() - gravity[1];
-                    linearAcceleration[2] = accelerometerData.getAx().floatValue() - gravity[2];
-                    //System.out.println("Sending image bytes, size: " + imageBuffer.length +
-                    //        "(should be: " + (176*144) + ")\n with buffer format: " +
-                    //        new GREYBufferFormat(176,144).toString());
-                    featureCallback.features(imageBuffer, WIDTH, HEIGHT, linearAcceleration);
+    @Override
+    public void mouseDragged(MouseEvent e) {
+    }
+
+    @Override
+    public void mouseMoved(MouseEvent e) {
+        if (prevMousePoint != null) {
+            double diff = e.getPoint().getX() - prevMousePoint.getX();
+            if (driveMode != Mode.AUTOMATIC) {
+                if (diff > 0) {
+                    if (left) {
+                        left = false;
+                        leftLastChangeMs = System.currentTimeMillis();
+                    } else if (System.currentTimeMillis() - leftLastChangeMs > 250) {
+                        right = true;
+                        rightLastChangeMs = System.currentTimeMillis();
+                    }
                 }
-            });
+                if (diff < 0) {
+                    if (right) {
+                        right = false;
+                        rightLastChangeMs = System.currentTimeMillis();
+                    } else if (System.currentTimeMillis() - rightLastChangeMs > 250) {
+                        left = true;
+                        leftLastChangeMs = System.currentTimeMillis();
+                    }
+                }
+            }
+            //sendControls(left, right, forward, reverse);
+            //view.update(left, right, forward, reverse, driveMode);
         }
+        prevMousePoint = e.getPoint();
+    }
+
+    private class MlAutobotRenderCallbackAdapter extends RenderCallbackAdapter {
+
+        private MlAutobotRenderCallbackAdapter() {
+            super(new int[FRAMEWIDTH * FRAMEHEIGHT]);
+        }
+
+        @Override
+        protected void onDisplay(DirectMediaPlayer mediaPlayer, int[] rgbBuffer) {
+            frameCounter++;
+            if (frameCounter > 30) {
+                // Simply copy buffer to the image and repaint
+                image.setRGB(0, 0, FRAMEWIDTH, FRAMEHEIGHT, rgbBuffer, 0, FRAMEWIDTH);
+                videoSurface.repaint();
+                //process the image
+                frameCounter = 0;
+            }
+        }
+    }
+
+    public static void main(final String[] args) throws IOException {
+        new NativeDiscovery().discover();
+        File out = File.createTempFile("nnrccar", "features");
+        System.out.println("Features writing to: "
+                + out.getAbsoluteFile().toString());
+        JPanel mainPanel = new JPanel(new BorderLayout(), true);
+        MlAutobot mlAutobot = new MlAutobot(out,
+                "data/theta1.dat", "data/theta2.dat", mainPanel);
+        mlAutobot.setTitle("ML Autobot Captured Video");
+        mlAutobot.setBounds(100, 100, 600, 500);
+        mlAutobot.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+        mlAutobot.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                System.exit(0);
+            }
+        });
+        mlAutobot.setContentPane(mainPanel);
+        mlAutobot.addKeyListener(mlAutobot);
+        mlAutobot.addMouseMotionListener(mlAutobot);
+        mlAutobot.setVisible(true);
+
     }
 }

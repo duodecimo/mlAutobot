@@ -68,13 +68,13 @@ public class Driver extends JFrame implements FeatureCallback, KeyListener,
     private Point prevMousePoint;
     private Predictor predictor;
 
-    private MlAutobot mlAutobot;
+    private MlAutobot2 mlAutobot;
 
     //private Thread writeThread;
 
     public Driver(/*SerialWrapper serial,*/File featureOutFile, String theta1File,
             String theta2File) {
-        this.mlAutobot = new MlAutobot(this);
+        this.mlAutobot = new MlAutobot2(this);
         //this.serial = serial;
         try {
             RealMatrix theta1 = NeuralNetwork
