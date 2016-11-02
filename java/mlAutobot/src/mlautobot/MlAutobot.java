@@ -59,8 +59,8 @@ import uk.co.caprica.vlcj.runtime.streams.NativeStreams;
 public class MlAutobot extends JFrame implements KeyListener, MouseMotionListener {
 
     private final String MRL = "http://192.168.0.12:8080";
-    public static final int FRAMEWIDTH = 40;
-    public static final int FRAMEHEIGHT = 30;
+    public static final int FRAMEWIDTH = 32;
+    public static final int FRAMEHEIGHT = 24;
     private DirectMediaPlayerComponent mediaPlayerComponent;
     private int frameCounter;
 
@@ -279,6 +279,8 @@ public class MlAutobot extends JFrame implements KeyListener, MouseMotionListene
                 videoSurface.repaint();
                 //process the image
                 frameCounter = 0;
+                System.out.println(">>> Image size : " + rgbBuffer.length);
+                System.out.println(">>> Image bytes: " + (rgbBuffer.length / (FRAMEWIDTH * FRAMEHEIGHT)));
             }
         }
     }
